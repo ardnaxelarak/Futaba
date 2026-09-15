@@ -1,0 +1,371 @@
+mnemonics:
+  one_bit_dotless: [ "mov", "or", "and", "eor", "not", "set", "clr" ]
+  one_bit_bittest: [ "bbc", "bbs" ]
+
+
+
+operators:
+  binary:
+    - name: "+"
+      desc: "addition"
+    - name: "-"
+      desc: "subtraction"
+    - name: "*"
+      desc: "multiplication"
+    - name: "/"
+      desc: "divison"
+    - name: "//"
+      desc: "integer division"
+    - name: "%"
+      desc: "modulo"
+    - name: "&lt;&lt;"
+      desc: "arithmetic left shift"
+    - name: "&gt;&gt;"
+      desc: "logical right shift"
+    - name: "&gt;&gt;&gt;"
+      desc: "arithmetic right shift"
+    - name: "&amp;"
+      desc: "bitwise AND"
+    - name: "|"
+      desc: "bitwise OR"
+    - name: "^"
+      desc: "bitwise EOR"
+
+
+  binary_logic:
+    - name: "=="
+      desc: "equal"
+    - name: "!="
+      desc: "not equal"
+    - name: "&gt;"
+      desc: "greater than"
+    - name: "&lt;"
+      desc: "less than"
+    - name: "&gt;="
+      desc: "greater than or equal"
+    - name: "&lt;="
+      desc: "less than or equal"
+    - name: "&&"
+      desc: "logical AND"
+    - name: "||"
+      desc: "logical OR"
+
+  binary_new:
+    - name: "]["
+      desc: "little endian merge"
+      usage: "<fblk>(a &amp; $FF) | ((b &amp; $FF) &lt;&lt; 8)</fblk>"
+    - name: "??"
+      desc: "null coalescence"
+      usage: "<fblk>a</fblk> if resolved; otherwise <fblk>b</fblk>"
+
+  unary:
+    - name: "+"
+      desc: "self"
+    - name: "-"
+      desc: "additive inverse"
+    - name: "~"
+      desc: "bitwise NOT"
+
+  unary_new:
+    - name: "&lt;"
+      desc: "low byte"
+      usage: "<fblk>a &amp; $FF</fblk>"
+    - name: "&gt;"
+      desc: "high byte"
+      usage: "<fblk>(a &gt;&gt; 8) &amp; $FF</fblk>"
+    - name: "^"
+      desc: "bank byte"
+      usage: "<fblk>(a &gt;&gt; 16) &amp; $FF</fblk>"
+    - name: "&lt;&amp;"
+      desc: "absolute"
+      usage: "<fblk>a &amp; $FFFF</fblk>"
+    - name: "&gt;&amp;"
+      desc: "high 16"
+      usage: "<fblk>(a &gt;&gt; 8) &amp; $FFFF</fblk>"
+    - name: "^&amp;"
+      desc: "isolate bank"
+      usage: "<fblk>a &amp; $FF0000</fblk>"
+
+  unary_postfix:
+    - name: "?"
+      desc: "null coalescence"
+      usage: "<fblk>a</fblk> if resolved; otherwise <fblk>0</fblk>"
+
+
+
+
+internal_variables:
+  - name: version
+    desc: Assembler version
+  - name: pc
+    desc: Current progarm counter
+  - name: site
+    desc: Current provenance
+  - name: here
+    desc: Alias for site
+  - name: offset
+    desc: Current binary offset
+  - name: line
+    desc: Current source line
+  - name: rand
+    desc: Random 64-bit value
+  - name: pi
+    desc: "<fblk>3.14159265358979323846264</fblk>"
+  - name: e
+    desc: "<fblk>2.71828182845904523536028</fblk>"
+  - name: rad
+    desc: "<fblk>0.01745329251994329576923</fblk> (&pi;/180)"
+  - name: name
+    desc: "Tile name mask: <fblk>$03FF</fblk>"
+
+
+
+functions:
+  - name: "sin"
+    args: [ "&theta;" ]
+    desc: "Returns the sine of %1"
+  - name: "cos"
+    args: [ "&theta;" ]
+    desc: "Returns the cosine of %1"
+  - name: "tan"
+    args: [ "&theta;" ]
+    desc: "Returns the tangent of %1"
+  - name: "asin"
+    args: [ "&theta;" ]
+    desc: "Returns the arcsine of %1"
+  - name: "acos"
+    args: [ "&theta;" ]
+    desc: "Returns the arccosine of %1"
+  - name: "atan"
+    args: [ "&theta;" ]
+    desc: "Returns the arctangent of %1"
+  - name: "log"
+    args: [ "x" ]
+    desc: "Returns log<sub>10</sub>(%1)"
+  - name: "log2"
+    args: [ "x" ]
+    desc: "Returns log<sub>2</sub>(%1)"
+  - name: "logb"
+    args: [ "x", "b" ]
+    desc: "Returns log<sub>%2</sub>(%1)"
+  - name: "pow"
+    args: [ "x", "p" ]
+    desc: "Returns %1 to the power of %2: %1<sup>%2</sup>"
+  - name: "sqrt"
+    args: [ "x" ]
+    desc: "Returns the square root of %1: <sup>2</sup>&radic;%1"
+  - name: "root"
+    args: [ "x", "n" ]
+    desc: "Returns the %2th root of %1: <sup>%2</sup>&radic;%1"
+  - name: "max"
+    args: [ "a", "b" ]
+    desc: "Returns the larger value of %1 and %2"
+  - name: "min"
+    args: [ "a", "b" ]
+    desc: "Returns the smaller value of %1 and %2"
+  - name: "clamp"
+    args: [ "a", "x", "y" ]
+    desc: "Returns %1 such that it is no smaller than %2 and no larger than %3"
+  - name: "round"
+    args: [ "x", "n" ]
+    desc: "Returns %1 rounded to %2 digits of precision; negative values remove precision to the left of the decimal point"
+  - name: "select"
+    args: [ "p", "a", "b" ]
+    desc: "Returns %3 when %1 evaluates to zero; otherwise %2"
+  - name: "vram"
+    args: [ "a" ]
+    desc: "Returns VRAM address of %1 as <fblk>(%1&amp;$FFFF)&gt;&gt;1</fblk>"
+  - name: "obsel"
+    args: [ "a", "n", "s" ]
+    desc: "Returns a value for the PPU register <asmvar>OBSEL</asmvar> for VRAM address %1 with %2 $1000&times;16-bit words between namespaces and size selector %3."
+  - name: "bgnba"
+    args: [ "a", "b" ]
+    desc: "Returns a value for the PPU registers <asmvar>BG[12/34]NGA</asmvar> that places background characters at the given addresses %1 for 1/3 and %2 for 2/4"
+  - name: "bgsc"
+    args: [ "a", "v", "h" ]
+    desc: "Returns a value for the PPU registers <asmvar>BG[1/2/3/4]SC</asmvar> that places the tilemap at VRAM address %1 and treats %2 and %3 as boolean values for vertical and horizontal mirroring, respectively"
+  - name: "rtn"
+    args: [ "a" ]
+    desc: "Returns <fblk>%1&minus;1</fblk>; useful for self-documenting stack return addresses"
+  - name: "rebank"
+    args: [ "a", "b" ]
+    desc: "Returns a new 24-bit address where the bank byte of %1 has been replaced with %2"
+  - name: "floor"
+    args: [ "n" ]
+    desc: "Returns %1 rounded to the nearest whole number less-than-or-equal to %1"
+  - name: "ceil"
+    args: [ "n" ]
+    desc: "Returns %1 rounded to the nearest whole number greater-than-or-equal to %1"
+  - name: "int"
+    args: [ "n" ]
+    desc: "Returns %1 with its fractional part truncated"
+  - name: "abs"
+    args: [ "n" ]
+    desc: "Returns the absolute value of %1"
+  - name: "bcd"
+    args: [ "n" ]
+    desc: "Returns the value that in hexadecimal represents %1 in binary-coded decimal"
+  - name: "col"
+    args: [ "c" ]
+    desc: "Returns the 15-bit SNES color that approximates the given HEX color %1 = $RRGGBB"
+  - name: "col"
+    args: [ "r", "g", "b" ]
+    desc: "Returns the 15-bit SNES color that approximates the given RGB color"
+  - name: "rand"
+    args: [ "a", "b" ]
+    desc: "Returns a random integer %0 such that %1&le;%0&lt;%2"
+  - name: "bitn"
+    args: [ "n" ]
+    desc: "Returns bit %1: <fblk>1&lt;&lt;%1</fblk>"
+  - name: "hash"
+    args: [ "s" ]
+    desc: "Returns a hash on string %1; this hash is guaranteed to be deterministic across releases"
+  - name: "len"
+    args: [ "s" ]
+    desc: "Returns the length of string %1 in characters"
+  - name: "streq"
+    args: [ "s", "c" ]
+    desc: "Returns 1 if strings %1 and %2 contain the same contents; otherwise 0"
+  - name: "exists"
+    args: [ "v" ]
+    desc: "Returns 1 if variable %1 exists when this expression is encountered; otherwise 0"
+  - name: "read"
+    args: [ file ]
+    desc: "Returns the 8-bit value from position 0 of %1"
+  - name: "read"
+    args: [ file,i ]
+    desc: "Returns the 8-bit value from position %2 of %1"
+  - name: "read"
+    args: [ file,i,s ]
+    desc: "Returns the %3-byte value from position %2 of %1; 1&le;%3&le;8"
+
+
+cli_args:
+  categories:
+    - name: assembly
+      items:
+        - name: entry
+          desc: The main entry point where assembly begins
+          required: true
+        - name: type
+          desc: The type of project being assembled
+          values: [ "new", "homebrew", "patch", "hack", "disassembly", "other" ]
+        - name: output
+          desc: Relative path to the desired output file
+        - name: addsymbols
+          desc: Preload symbols into the symbols table for use during assembly
+          valuelist:
+            - name: ppu
+              desc: PPU registers on page $21
+            - name: cpu
+              desc: S-CPU registers on page $42
+            - name: joypad
+              desc: Joypad registers on page $40
+            - name: dma
+              desc: DMA and HDMA registers on page $43
+            - name: spc
+              desc: SPC registers on page $00 in ARAM
+            - name: dsp
+              desc: Sound DSP registers
+            - name: sa1
+              desc: SA-1 registers on pages $22 and $23
+            - name: sfx
+              desc: GSU registers on page $30
+            - name: standard
+              desc: <fblk>ppu</fblk>, <fblk>cpu</fblk>, <fblk>joypad</fblk>, <fblk>dma</fblk> (+aliases), <fblk>spc</fblk>, <fblk>dsp</fblk>
+            - name: snes
+              desc: <fblk>ppu</fblk>, <fblk>cpu</fblk>, <fblk>joypad</fblk>, <fblk>dma</fblk>
+            - name: apu
+              desc: <fblk>spc</fblk>, <fblk>dsp</fblk>
+        - name: nullfill
+          desc: Pre-initialize the output buffer before assembly
+          valuelist:
+            - name: zero
+              desc: (default) filled with 0s
+            - name: byte
+              args: [ "val", "..." ]
+              desc: filled the given pattern of bytes
+            - name: string
+              args: [ "text" ]
+              desc: UTF-8-encoded text
+            - name: random
+              desc: random data
+            - name: random
+              args: [ "string" ]
+              desc: deterministic random data, using a string for seeding
+          info: |
+            This option only initializes the buffer before assembly.
+            If the file grows in size, the expanded region will be initialized to all 0.
+        - name: randomseed
+          desc: Seeds the assembler for deterministic random numbers using the given string
+        - name: base
+          desc: Relative path to a file to use as a base binary
+    - name: header
+      items:
+        - name: mapmode
+          desc: Mapper mode used by the program
+          values: [ "lorom", "hirom", "exlorom", "exhirom", "sa1", "none" ]
+          required: true
+        - name: autofill
+          desc: Automatically populates the ROM header using the data supplied in this block.
+          values: &BoolInputs [ "true", "false" ]
+          default: "false"
+        - name: checksum
+          desc: Calculate and insert a checksum at the end of assembly.
+          value: *BoolInputs
+          info: This option has lower priority than autofill.
+          default: "false"
+        - name: fastrom
+          desc: Indicates whether this program utilizes FastROM
+          values: *BoolInputs
+          default: "false"
+        - name: title
+          desc: ASCII title inserted into the header
+          info: The title will be trimmed of leading white space and padded to 21 characters.
+        - name: romsize
+          desc: Initial program size in bytes
+          values: [ "32kb", "64kb", "128kb", "256kb", "512kb", "1mb", "1.5mb", "2mb", "3mb", "4mb", "6mb", "8mb" ]
+          info: This value may be limited by the mapper mode chosen.
+        - name: ramsize
+          desc: Amount of on-board RAM in bytes
+          values: [ "none", "2kb", "4kb", "8kb", "16kb", "32kb", "64kb", "128kb", "256kb" ]
+        - name: version
+          desc: ROM version (1 byte value)
+        - name: region
+          desc: Target distribution region/language
+          values: [ "japan", "north america", "europe", "france", "dutch", "spain", "germany", "italy", "china", "korea", "quebec", "brazil", "australia", "scandinavia", "common" ]
+        - name: extended
+          desc: Indicates this program uses the extended header
+          values: *BoolInputs
+        - name: coprocessor
+          desc: What coprocessor, if any is present on board
+          values: [ "none", "sa1", "sfx", "dsp", "obc1", "sdd1", "srtc", "custom", "other" ]
+        - name: gamecode
+          desc: ASCII 4-character game code
+        - name: makercode
+          desc: ASCII 2-character game code
+    - name: debug
+      items:
+        - name: symbols
+          desc: Output format for symbols found during assembly
+          values: [ "mlb", "wla" ]
+        - name: stdout
+          desc: Relative path to text file for print directives. If unspecified, everything is written to the console.
+        - name: errorout
+          desc: Relative path to text file for warnings and errors. If unspecified, everything is written to the console.
+        - name: overflow
+          desc: Action to take if assembly occurs outside the buffer.
+          values: [ "error", "grow", "expand" ]
+        - name: tokens
+          desc: Set the warning level for instructions without a size token.
+          values: [ "off", "ambiguous", "aggressive", "absolute", "all" ]
+    - name: disassembly
+      items:
+        - name: crc
+          desc: A string literal to display and compare against for CRC32 hashing over the output file.
+        - name: md5
+          desc: A string literal to display and compare against for MD5 hashing over the output file.
+        - name: sha1
+          desc: A string literal to display and compare against for <nowrap>SHA-1</nowrap> hashing over the output file.
+        - name: diff
+          desc: Relative path to a nominal file to compare output against.

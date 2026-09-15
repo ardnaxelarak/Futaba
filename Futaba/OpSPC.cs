@@ -1,0 +1,153 @@
+﻿namespace Futaba;
+
+internal enum OpSPC {
+	NotGood = 0,
+
+	ADC,
+	ADDW,
+	AND,
+
+	AND0, // KEEP THESE IN ORDER
+	AND1 = AND0 + 1,
+	AND2 = AND0 + 2,
+	AND3 = AND0 + 3,
+	AND4 = AND0 + 4,
+	AND5 = AND0 + 5,
+	AND6 = AND0 + 6,
+	AND7 = AND0 + 7,
+
+	ASL,
+
+	BBC0, // KEEP THESE IN ORDER
+	BBC1 = BBC0 + 1,
+	BBC2 = BBC0 + 2,
+	BBC3 = BBC0 + 3,
+	BBC4 = BBC0 + 4,
+	BBC5 = BBC0 + 5,
+	BBC6 = BBC0 + 6,
+	BBC7 = BBC0 + 7,
+
+	BBS0, // KEEP THESE IN ORDER
+	BBS1 = BBS0 + 1,
+	BBS2 = BBS0 + 2,
+	BBS3 = BBS0 + 3,
+	BBS4 = BBS0 + 4,
+	BBS5 = BBS0 + 5,
+	BBS6 = BBS0 + 6,
+	BBS7 = BBS0 + 7,
+
+	BCC,
+	BCS,
+	BEQ,
+	BMI,
+	BNE,
+	BPL,
+	BRA,
+	BRK,
+	BVC,
+	BVS,
+	CALL,
+	CBNE,
+
+	CLR0, // KEEP THESE IN ORDER
+	CLR1 = CLR0 + 1,
+	CLR2 = CLR0 + 2,
+	CLR3 = CLR0 + 3,
+	CLR4 = CLR0 + 4,
+	CLR5 = CLR0 + 5,
+	CLR6 = CLR0 + 6,
+	CLR7 = CLR0 + 7,
+
+	CLRC,
+	CLRP,
+	CLRV,
+
+	CMP,
+	CMPW,
+	DAA,
+	DAS,
+	DBNZ,
+	DEC,
+	DECW,
+	DI,
+	DIV,
+	EI,
+	EOR,
+
+	EOR0, // KEEP THESE IN ORDER
+	EOR1 = EOR0 + 1,
+	EOR2 = EOR0 + 2,
+	EOR3 = EOR0 + 3,
+	EOR4 = EOR0 + 4,
+	EOR5 = EOR0 + 5,
+	EOR6 = EOR0 + 6,
+	EOR7 = EOR0 + 7,
+
+	INC,
+	INCW,
+	JMP,
+	LSR,
+	MOV,
+
+	MOV0, // KEEP THESE IN ORDER
+	MOV1 = MOV0 + 1,
+	MOV2 = MOV0 + 2,
+	MOV3 = MOV0 + 3,
+	MOV4 = MOV0 + 4,
+	MOV5 = MOV0 + 5,
+	MOV6 = MOV0 + 6,
+	MOV7 = MOV0 + 7,
+
+	MOVW,
+	MUL,
+	NOP,
+
+	NOT0, // KEEP THESE IN ORDER
+	NOT1 = NOT0 + 1,
+	NOT2 = NOT0 + 2,
+	NOT3 = NOT0 + 3,
+	NOT4 = NOT0 + 4,
+	NOT5 = NOT0 + 5,
+	NOT6 = NOT0 + 6,
+	NOT7 = NOT0 + 7,
+
+	NOTC,
+	OR,
+
+	OR0, // KEEP THESE IN ORDER
+	OR1 = OR0 + 1,
+	OR2 = OR0 + 2,
+	OR3 = OR0 + 3,
+	OR4 = OR0 + 4,
+	OR5 = OR0 + 5,
+	OR6 = OR0 + 6,
+	OR7 = OR0 + 7,
+
+	PCALL,
+	POP,
+	PUSH,
+	RET,
+	RETI,
+	ROL,
+	ROR,
+	SBC,
+
+	SET0, // KEEP THESE IN ORDER
+	SET1 = SET0 + 1,
+	SET2 = SET0 + 2,
+	SET3 = SET0 + 3,
+	SET4 = SET0 + 4,
+	SET5 = SET0 + 5,
+	SET6 = SET0 + 6,
+	SET7 = SET0 + 7,
+
+	SETC,
+	SETP,
+	SLEEP,
+	STOP,
+	SUBW,
+	TCALL,
+	TCLR,
+	TSET,
+	XCN,
+}

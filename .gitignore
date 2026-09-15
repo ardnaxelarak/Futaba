@@ -1,0 +1,16 @@
+# VS/artifact files
+
+bin/
+obj/
+.vs/
+Setup/
+*launchSettings.json
+Properties/PublishProfiles/
+
+*.user
+publish/*
+
+# ROMs
+*.sfc
+*.smc
+*.zip

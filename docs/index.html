@@ -1,0 +1,1466 @@
+---
+layout: default
+title: "Futaba assembler"
+repocss: futaba
+background: futaba
+ogdesc: "Documentation for the SNES assembler Futaba."
+---
+
+{%- assign tblclasses="bordertighty nostripes" -%}
+{%- assign SPLAT = "<nowrap>SPLAT (<ftok>*</ftok>)</nowrap>" -%}
+{%- assign ALLOC = "allocator <nowrap>token (<ftok>::</ftok>)</nowrap>" -%}
+{%- assign argl = "<farg>&laquo;" -%}
+{%- assign argr = "&raquo;</farg>" -%}
+{%- assign IDENTIFIER = "IDENTIFIER" | prepend: argl | append: argr -%}
+{%- assign EXPRESSION = "EXPRESSION" | prepend: argl | append: argr -%}
+{%- assign ADDRESS = "ADDRESS" | prepend: argl | append: argr -%}
+{%- assign ARGSIZE = "SIZE" | prepend: argl | append: argr -%}
+{%- assign FILENAME = "<fstr>&quot;FILE&quot;</fstr>" | prepend: argl | append: argr -%}
+
+
+<h1>Futaba</h1>
+
+<img id="logo" src="assets/futabalogo.png" />
+
+<p>Futaba is a low-level assembler specifically targetting the Super Famicom (SFC) and Super Nintendo Entertainment System (SNES). Futaba is an open-source project with its source code hosted <a href="https://github.com/spannerisms/futaba">on&nbsp;GitHub</a>.</p>
+
+<p>Futaba is a single-pass assembler, prioritizing fast assembly and a smaller memory footprint. One of this project's goals is also to move away from the archaic and <nowrap>C-flavored</nowrap> syntax prevalent in other assemblers. Currently, Futaba also aims to be as low-level as possible. Higher level program flow such as <code>while</code> statements are left out in favor of encouraging source generators.</p>
+
+<p>As a .NET application, Futaba is cross-platform. The only prerequisite is having the .NET (10.0+) runtime. The core library is separate from the command-line interface, allowing it to be cleanly imported into other projects. Futaba is also <nowrap>AOT-compatible</nowrap>, enabling direct compilation to a native executable, negating the need for the runtime entirely.</p>
+
+<h2>Release timeline</h2>
+
+<ol id="timeline">
+	<li><del>2026-04-06 &ndash; private, closed-source development</del></li>
+	<li>2026-09-15 &ndash; public beta; open source</li>
+	<li>TBD &ndash; preview</li>
+	<li>TBD &ndash; release</li>
+</ol>
+
+<p id="release_disclaimer">Futaba is currently in the public beta stage. Not every feature has been fully implemented or tested, but its source is available for review and contribution. Bugs definitely exist and no guarantees are yet made. Once the core library has reached a stable state, we will enter a year-long preview stage during which syntax and naming may be adjusted, and features might be removed or modified. After the preview stage all of these aforementioned components will be locked and permanent. Until the full release, guarantees about determinism across release should not be considered valid. Expect potentially breaking changes.</p>
+
+<ul>Currently untested/broken/unimplemented features:
+	<li>MMC banking is not implemented (avoid the SA-1 assembler for now)</li>
+	<li>ExLorom and ExHirom not fully tested</li>
+	<li>Not all coprocessors are properly implemented</li>
+	<li>SuperFX not fully tested</li>
+	<li>Docks/protected segments not really tested</li>
+	<li>CLI registration not yet implemented outside of Windows (help wanted!)</li>
+	<li>CLI does not interact with breakpoints</li>
+	<li>CLI symbols output not yet validated</li>
+</ul>
+
+
+
+
+<!---Future text
+
+<p id="release_disclaimer">Futaba is currently in a preview stage. This stage is scheduled to end on TIMEITENDS. During this time, syntax for various directives, etc. may change in response to feedback. After this preview stages, Futaba will enter full release, and syntax will no longer change. Until the full release, guarantees about determinism across release should not be considered valid.</p>--->
+
+
+
+<h2 id="quickstart">Quickstart</h2>
+
+<p>All versions of Futaba require the .NET (10.0+) runtime, which can be downloaded <a href="https://dotnet.microsoft.com/en-us/download">from Microsoft.com</a>.</p>
+
+<ol id="reg-windows">
+	Windows:
+	<li>Download <a href="https://github.com/spannerisms/futaba/releases/latest">the latest release of Futaba</a>.</li>
+	<li>Extract the contents of the archive to a permanent home for the application.</li>
+	<li>Navigate to that folder.</li>
+	<li>Click the address bar and type <fex>cmd</fex>. This will open the command prompt.</li>
+	<li>Type <fex>futaba register</fex> in the command prompt then press ENTER.</li>
+</ol>
+
+
+
+<h2 id="syntax">Features and Syntax</h2>
+
+<h3>Numbers</h3>
+
+<p>Number literals can be written in decimal, hexadecimal, or binary.</p>
+
+<div class="futexample">
+<fkey>print</fkey> 16 <fcom>; no prefix - decimal</fcom>
+<fkey>print</fkey> $10 <fcom>; <fblk>$</fblk> prefix - hexadecimal </fcom>
+<fkey>print</fkey> %10000 <fcom>; <fblk>%</fblk> prefix - binary</fcom>
+</div>
+
+<p>Number literals can be split with <nowrap>underscores (<ftok>_</ftok>)</nowrap> as digit separators to improve readability.</p>
+
+<div class="futexample">
+<fkey>print</fkey> 2_000_000
+<fkey>print</fkey> $10_BEBE
+<fkey>print</fkey> %1111_0000
+</div>
+
+<div class="futaba-warn">NOTE: To avoid ambiguity with sublabels, numbers of magnitude less than 1 must be written with a leading 0; e.g., <fex>0.9</fex> not <fex>.9</fex>.</div>
+
+<h3>Strings</h3>
+
+<p>Strings are an important data type, but they may be intepreted in multiple ways. In normal expressions, a string either behaves as a string object or, when a numeric value is expected, it will behave as either 0 (empty string) or the encoding of its first character.</p>
+
+<p>A single character can be inserted by enclosing it in <nowrap>apostrophes (<ftok>'</ftok>)</nowrap>.</p>
+
+<div class="futaba-warn">Note: Futaba supports source files encoded in ASCII, <nowrap>UTF-8</nowrap>, and <nowrap>UTF-16</nowrap>, but does not support codepoints beyond the Basic Multilingual Plane (<code>U+0000&ndash;U+FFFF</code>) outside of comments. Surrogates are treated as separate characters.</div>
+
+<h4>Escape sequences</h4>
+
+<p>In some cases, a character may need to be escaped in a string or character:</p>
+
+<ul>
+	<li><fblk>\\</fblk> &ndash; backslash</li>
+	<li><fblk>\"</fblk> &ndash; quotation mark</li>
+	<li><fblk>\!</fblk> &ndash; exclamation mark</li>
+	<li><fblk>\'</fblk> &ndash; apostrophe</li>
+	<li><fblk>\{</fblk>, <fblk>\}</fblk> &ndash; braces</li>
+</ul>
+
+<h4>Encoders</h4>
+
+<p>The default encoding is ASCII, which maps the unprintable characters and characters outside of the ASCII code block to space (U+0020). One other built-in encoder exists for unicode, which maps characters directly to their code point. Different encodings are selected with the <fkey id="directive-encoder">encoder</fkey> directive.</p>
+
+<div class="futexample">
+<fkey>encoder</fkey> ascii
+<fkey>encoder</fkey> unicode
+</div>
+
+<p>Additional encoders can be declared by using the <fkey>encoder</fkey> directive followed by an identifier and a file path. User-defined encoders can be selected the same way as the built-in encoders. The identifier must be a unique name among encoders and cannot be the reserved names <fblk>ascii</fblk> or <fblk>unicode</fblk>.</p>
+
+<div class="futsyntax">
+<fkey>encoder</fkey> {{IDENTIFIER}} {{FILENAME}}
+</div>
+
+<p>The format of an encoding file is one definition per line, with the first character of that line containing the character to encode followed by an <nowrap>equals sign (<ftok>=</ftok>)</nowrap> then a prefix-less hexadecimal value. Any character not defined by the encoder will be mapped to 0.</p>
+
+<div class="futexample">
+A = 20
+B = 21
+C = 22
+D = 23
+E = 24
+F = 25
+Z = 3A
+</div>
+
+<p>For contiguous mappings, use an <nowrap>ellipsis (<ftok>...</ftok>)</nowrap> followed by the last character in the range. Optionally, put a character in front to specify the beginning of the range. The example below encodes the uppercase letters beginning at <code>$20</code> followed by the lowercase letters, all consecutively:</p>
+
+<div class="futexample">
+A = 20
+...Z
+a...z
+</div>
+
+<p>If a character is by itself on a line, it will be inserted as the next code point. The example below encodes the first 6 uppercase letters as <code>$20</code> through <code>$25</code>:</p>
+
+<div class="futexample">
+A = 20
+B
+C
+D
+E
+F
+</div>
+
+
+<h4>String functions</h4>
+
+<p>When used in a data statement, functions can be invoked on a string by appending a <nowrap>triple-slash (<ftok>///</ftok>)</nowrap>. Multiple function can be provided for a single string by separating each function with a <nowrap>single-slash (<ftok>/</ftok>)</nowrap>.</p>
+
+<p>The <fblk>enc</fblk> function selects an encoder for a string without changing the default encoder.</p>
+
+<div class="futexample">
+<fkey>encoder</fkey> ascii
+<asmop>db</asmop> <fstr>"Hello world!"</fstr> <fcom>; uses the ascii encoder</fcom>
+<asmop>db</asmop> <fstr>"I am encoded!"</fstr>///enc:unicode <fcom>; uses the unicode encoder</fcom>
+<asmop>db</asmop> <fstr>"I too am that."</fstr> <fcom>; uses the ascii encoder</fcom>
+</div>
+
+<p>The <fblk>upper</fblk> and <fblk>lower</fblk> functions transform a string to upper- and lowercase, respectively.</p>
+
+<div class="futexample">
+<asmop>db</asmop> <fstr>"hEllO WoRlD!"</fstr>///upper <fcom>; "HELLO WORLD!"</fcom>
+<asmop>db</asmop> <fstr>"HelLo WOrLd!"</fstr>///lower <fcom>; "hello world!"</fcom>
+</div>
+
+<p>The <fblk>pad</fblk> function pads a string to a given number of characters with a specified alignment. By default, the string will be padded with spaces. Enclose a character in apostrophes to specify it as the padding character.</p>
+
+<p>Padding only lengthens strings that are too short. To force an exact length instead of a minimum, use the <fblk>len</fblk> function with the same arguments.</p>
+
+<ul><fblk>pad</fblk> modes:
+	<li><ftok>l</ftok> &ndash; pad and left align</li>
+	<li><ftok>r</ftok> &ndash; pad and right align</li>
+	<li><ftok>cl</ftok> &ndash; pad and center-left align (alias: <ftok>c</ftok>)</li>
+	<li><ftok>cr</ftok> &ndash; pad and center-right align</li>
+</ul>
+
+<div class="futexample">
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:l20 <fcom>; "Hello world!        "</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:l20'!' <fcom>; "Hello world!!!!!!!!!"</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:r20'!' <fcom>; "!!!!!!!!Hello world!"</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:c20 <fcom>; "    Hello world     "</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:cr20 <fcom>; "     Hello world    "</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:cl20 <fcom>; "    Hello world     "</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///pad:r5 <fcom>; "Hello world!"</fcom>
+
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///len:l20 <fcom>; "Hello world!        "</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///len:l5 <fcom>; "Hello"</fcom>
+<asmop>db</asmop> <fstr>"Hello world!"</fstr>///len:r5 <fcom>; "Hello"</fcom>
+</div>
+
+<h4>Commands</h4>
+
+<p>Each line of source code ends when it reaches the end of the line, a comment, or a single-line token.</p>
+
+<p>Comments are denoted with a <nowrap>semicolon (<ftok>;</ftok>)</nowrap> and continue to the end of the line.</p>
+
+<p>Multiple statements can be written on a single line by using a colon surrounded by white space on both <nowrap>sides (<ftok> : </ftok>).</p>
+
+<div class="futexample">
+<fkey>print</fkey> 1
+<fkey>print</fkey> 2 <fcom>; This is a comment.</fcom>
+<fkey>print</fkey> 1 : <fkey>print</fkey> 2
+<fkey>print</fkey> 1 :<fkey>print</fkey> 2 <fcom>; error! missing space on the right</fcom>
+</div>
+
+<h3>Languages</h3>
+
+<p>Three languages are supported, selected by using the <fkey id="directive-lang">lang</fkey> or <fkey id="directive-arch">arch</fkey> directive:</p>
+
+<table id="langs" class="{{ tblclasses }} align3left topcells">
+	<thead>
+		<tr>
+			<th>Language</th>
+			<th>Names</th>
+			<th>Mnemonics</th>
+		</tr>
+	</thead>
+
+	<tr>
+		<td>WDC&nbsp;65c816</td>
+		<td><div><fblk>wdc</fblk> <fblk>65816</fblk> <fblk>65c816</fblk> <fblk>wdc65816</fblk> <fblk>wdc65c816</fblk></div></td>
+		<td><div><fblk>ADC</fblk> <fblk>AND</fblk> <fblk>ASL</fblk> <fblk>BCC</fblk> <fblk>BCS</fblk> <fblk>BEQ</fblk> <fblk>BIT</fblk> <fblk>BMI</fblk> <fblk>BNE</fblk> <fblk>BPL</fblk> <fblk>BRA</fblk> <fblk>BRK</fblk> <fblk>BRL</fblk> <fblk>BVC</fblk> <fblk>BVS</fblk> <fblk>CLC</fblk> <fblk>CLD</fblk> <fblk>CLI</fblk> <fblk>CLV</fblk> <fblk>CMP</fblk> <fblk>COP</fblk> <fblk>CPX</fblk> <fblk>CPY</fblk> <fblk>DEC</fblk> <fblk>DEX</fblk> <fblk>DEY</fblk> <fblk>EOR</fblk> <fblk>INC</fblk> <fblk>INX</fblk> <fblk>INY</fblk> <fblk>JML</fblk> <fblk>JMP</fblk> <fblk>JSL</fblk> <fblk>JSR</fblk> <fblk>LDA</fblk> <fblk>LDX</fblk> <fblk>LDY</fblk> <fblk>LSR</fblk> <fblk>MVN</fblk> <fblk>MVP</fblk> <fblk>NOP</fblk> <fblk>ORA</fblk> <fblk>PEA</fblk> <fblk>PEI</fblk> <fblk>PER</fblk> <fblk>PHA</fblk> <fblk>PHB</fblk> <fblk>PHD</fblk> <fblk>PHK</fblk> <fblk>PHP</fblk> <fblk>PHX</fblk> <fblk>PHY</fblk> <fblk>PLA</fblk> <fblk>PLB</fblk> <fblk>PLD</fblk> <fblk>PLP</fblk> <fblk>PLX</fblk> <fblk>PLY</fblk> <fblk>REP</fblk> <fblk>ROL</fblk> <fblk>ROR</fblk> <fblk>RTI</fblk> <fblk>RTL</fblk> <fblk>RTS</fblk> <fblk>SBC</fblk> <fblk>SEC</fblk> <fblk>SED</fblk> <fblk>SEI</fblk> <fblk>SEP</fblk> <fblk>STA</fblk> <fblk>STP</fblk> <fblk>STX</fblk> <fblk>STY</fblk> <fblk>STZ</fblk> <fblk>TAX</fblk> <fblk>TAY</fblk> <fblk>TCD</fblk> <fblk>TCS</fblk> <fblk>TDC</fblk> <fblk>TRB</fblk> <fblk>TSB</fblk> <fblk>TSC</fblk> <fblk>TSX</fblk> <fblk>TXA</fblk> <fblk>TXS</fblk> <fblk>TXY</fblk> <fblk>TYA</fblk> <fblk>TYX</fblk> <fblk>WAI</fblk> <fblk>WDM</fblk> <fblk>XBA</fblk> <fblk>XCE</fblk></div></td>
+	</tr>
+	<tr>
+		<td>SPC700</td>
+		<td><div><fblk>spc</fblk> <fblk>spc700</fblk></div></td>
+		<td><div><fblk>ADC</fblk> <fblk>ADDW</fblk> <fblk>AND</fblk> <fblk>AND0</fblk> <fblk>AND1</fblk> <fblk>AND2</fblk> <fblk>AND3</fblk> <fblk>AND4</fblk> <fblk>AND5</fblk> <fblk>AND6</fblk> <fblk>AND7</fblk> <fblk>ASL</fblk> <fblk>BBC0</fblk> <fblk>BBC1</fblk> <fblk>BBC2</fblk> <fblk>BBC3</fblk> <fblk>BBC4</fblk> <fblk>BBC5</fblk> <fblk>BBC6</fblk> <fblk>BBC7</fblk> <fblk>BBS0</fblk> <fblk>BBS1</fblk> <fblk>BBS2</fblk> <fblk>BBS3</fblk> <fblk>BBS4</fblk> <fblk>BBS5</fblk> <fblk>BBS6</fblk> <fblk>BBS7</fblk> <fblk>BCC</fblk> <fblk>BCS</fblk> <fblk>BEQ</fblk> <fblk>BMI</fblk> <fblk>BNE</fblk> <fblk>BPL</fblk> <fblk>BRA</fblk> <fblk>BRK</fblk> <fblk>BVC</fblk> <fblk>BVS</fblk> <fblk>CALL</fblk> <fblk>CBNE</fblk> <fblk>CLR0</fblk> <fblk>CLR1</fblk> <fblk>CLR2</fblk> <fblk>CLR3</fblk> <fblk>CLR4</fblk> <fblk>CLR5</fblk> <fblk>CLR6</fblk> <fblk>CLR7</fblk> <fblk>CLRC</fblk> <fblk>CLRP</fblk> <fblk>CLRV</fblk> <fblk>CMP</fblk> <fblk>CMPW</fblk> <fblk>DAA</fblk> <fblk>DAS</fblk> <fblk>DBNZ</fblk> <fblk>DEC</fblk> <fblk>DECW</fblk> <fblk>DI</fblk> <fblk>DIV</fblk> <fblk>EI</fblk> <fblk>EOR</fblk> <fblk>EOR0</fblk> <fblk>EOR1</fblk> <fblk>EOR2</fblk> <fblk>EOR3</fblk> <fblk>EOR4</fblk> <fblk>EOR5</fblk> <fblk>EOR6</fblk> <fblk>EOR7</fblk> <fblk>INC</fblk> <fblk>INCW</fblk> <fblk>JMP</fblk> <fblk>LSR</fblk> <fblk>MOV</fblk> <fblk>MOV0</fblk> <fblk>MOV1</fblk> <fblk>MOV2</fblk> <fblk>MOV3</fblk> <fblk>MOV4</fblk> <fblk>MOV5</fblk> <fblk>MOV6</fblk> <fblk>MOV7</fblk> <fblk>MOVW</fblk> <fblk>MUL</fblk> <fblk>NOP</fblk> <fblk>NOT0</fblk> <fblk>NOT1</fblk> <fblk>NOT2</fblk> <fblk>NOT3</fblk> <fblk>NOT4</fblk> <fblk>NOT5</fblk> <fblk>NOT6</fblk> <fblk>NOT7</fblk> <fblk>NOTC</fblk> <fblk>OR</fblk> <fblk>OR0</fblk> <fblk>OR1</fblk> <fblk>OR2</fblk> <fblk>OR3</fblk> <fblk>OR4</fblk> <fblk>OR5</fblk> <fblk>OR6</fblk> <fblk>OR7</fblk> <fblk>PCALL</fblk> <fblk>POP</fblk> <fblk>PUSH</fblk> <fblk>RET</fblk> <fblk>RETI</fblk> <fblk>ROL</fblk> <fblk>ROR</fblk> <fblk>SBC</fblk> <fblk>SET0</fblk> <fblk>SET1</fblk> <fblk>SET2</fblk> <fblk>SET3</fblk> <fblk>SET4</fblk> <fblk>SET5</fblk> <fblk>SET6</fblk> <fblk>SET7</fblk> <fblk>SETC</fblk> <fblk>SETP</fblk> <fblk>SLEEP</fblk> <fblk>STOP</fblk> <fblk>SUBW</fblk> <fblk>TCALL</fblk> <fblk>TCLR</fblk> <fblk>TSET</fblk> <fblk>XCN</fblk></div></td>
+	</tr>
+	<tr>
+		<td>Super&nbsp;FX</td>
+		<td><div><fblk>sfx</fblk> <fblk>superfx</fblk></div></td>
+		<td><div><fblk>ADC</fblk> <fblk>ADD</fblk> <fblk>ALT1</fblk> <fblk>ALT2</fblk> <fblk>ALT3</fblk> <fblk>AND</fblk> <fblk>ASR</fblk> <fblk>BCC</fblk> <fblk>BCS</fblk> <fblk>BEQ</fblk> <fblk>BGE</fblk> <fblk>BIC</fblk> <fblk>BLT</fblk> <fblk>BMI</fblk> <fblk>BNE</fblk> <fblk>BPL</fblk> <fblk>BRA</fblk> <fblk>BVC</fblk> <fblk>BVS</fblk> <fblk>CACHE</fblk> <fblk>CMODE</fblk> <fblk>CMP</fblk> <fblk>COLOR</fblk> <fblk>DEC</fblk> <fblk>DIV2</fblk> <fblk>FMULT</fblk> <fblk>FROM</fblk> <fblk>GETB</fblk> <fblk>GETBH</fblk> <fblk>GETBL</fblk> <fblk>GETBS</fblk> <fblk>GETC</fblk> <fblk>HIB</fblk> <fblk>IBT</fblk> <fblk>INC</fblk> <fblk>IWT</fblk> <fblk>JMP</fblk> <fblk>LDB</fblk> <fblk>LDW</fblk> <fblk>LEA</fblk> <fblk>LINK</fblk> <fblk>LJMP</fblk> <fblk>LM</fblk> <fblk>LMS</fblk> <fblk>LMULT</fblk> <fblk>LOB</fblk> <fblk>LOOP</fblk> <fblk>LSR</fblk> <fblk>MERGE</fblk> <fblk>MOVE</fblk> <fblk>MOVEB</fblk> <fblk>MOVES</fblk> <fblk>MOVEW</fblk> <fblk>MULT</fblk> <fblk>NOP</fblk> <fblk>NOT</fblk> <fblk>OR</fblk> <fblk>PLOT</fblk> <fblk>RAMB</fblk> <fblk>ROL</fblk> <fblk>ROMB</fblk> <fblk>ROR</fblk> <fblk>RPIX</fblk> <fblk>SBC</fblk> <fblk>SBK</fblk> <fblk>SEX</fblk> <fblk>SM</fblk> <fblk>SMS</fblk> <fblk>STB</fblk> <fblk>STOP</fblk> <fblk>STW</fblk> <fblk>SUB</fblk> <fblk>SWAP</fblk> <fblk>TO</fblk> <fblk>UMULT</fblk> <fblk>WITH</fblk> <fblk>XOR</fblk></div></td>
+	</tr>
+</table>
+
+
+<h4>Differences from official documentation</h4>
+
+<table id="operator-precedence" class="{{ tblclasses }} float-right hilite">
+	<thead>
+		<tr>
+			<th>Official syntax</th>
+			<th>Futaba syntax</th>
+		</tr>
+	</thead>
+
+	<tbody>
+		<tr>
+			<td><fblk><asmop>mov1</asmop> <asmreg>C</asmreg>, arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>mov<fbitarg>n</fbitarg></asmop> <asmreg>C</asmreg>, arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>mov1</asmop> arg.<fbitarg>n</fbitarg>, <asmreg>C</asmreg></fblk></td>
+			<td><fblk><asmop>mov<fbitarg>n</fbitarg></asmop> arg, <asmreg>C</asmreg></fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>and1</asmop> <asmreg>C</asmreg>, arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>and<fbitarg>n</fbitarg></asmop> <asmreg>C</asmreg>, arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>and1</asmop> <asmreg>C</asmreg>, /arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>and<fbitarg>n</fbitarg></asmop> <asmreg>C</asmreg>, /arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>or1</asmop> <asmreg>C</asmreg>, arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>or<fbitarg>n</fbitarg></asmop> <asmreg>C</asmreg>, arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>or1</asmop> <asmreg>C</asmreg>, /arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>or<fbitarg>n</fbitarg></asmop> <asmreg>C</asmreg>, /arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>eor1</asmop> <asmreg>C</asmreg>, arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>eor<fbitarg>n</fbitarg></asmop> <asmreg>C</asmreg>, arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>not1</asmop> arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>not<fbitarg>n</fbitarg></asmop> arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>set1</asmop> arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>set<fbitarg>n</fbitarg></asmop> arg</fblk></td>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>clr1</asmop> arg.<fbitarg>n</fbitarg></fblk></td>
+			<td><fblk><asmop>clr<fbitarg>n</fbitarg></asmop> arg</fblk></td>
+		</tr>
+
+		<tr class="headerrow">
+			<th colspan="2">Mnemonics with aliases</th>
+		</tr>
+
+		<tr class="headerrow">
+			<th>Official syntax</th>
+			<th>Alias</th>
+		</tr>
+
+		<tr>
+			<td><fblk><asmop>tclr1</asmop> arg</fblk></td>
+			<td><fblk><asmop>tclr</asmop> arg</fblk></td>
+		</tr>
+		<tr>
+			<td><fblk><asmop>tset1</asmop> arg</fblk></td>
+			<td><fblk><asmop>tset</asmop> arg</fblk></td>
+		</tr>
+		<tr>
+			<td><fblk><asmop>daa</asmop> <asmreg>A</asm></fblk></td>
+			<td><fblk><asmop>daa</asmop></fblk></td>
+		</tr>
+		<tr>
+			<td><fblk><asmop>das</asmop> <asmreg>A</asm></fblk></td>
+			<td><fblk><asmop>das</asmop></fblk></td>
+		</tr>
+		<tr>
+			<td><fblk><asmop>xcn</asmop> <asmreg>A</asmreg></fblk></td>
+			<td><fblk><asmop>xcn</asmop></fblk></td>
+		</tr>
+		<tr>
+			<td><fblk><asmop>mov</asmop> <asmreg>A</asmreg>, (<asmreg>X</asmreg>)+</fblk></td>
+			<td><fblk><asmop>mov</asmop> <asmreg>A</asmreg>, (<asmreg>X</asmreg>+)</fblk></td>
+		</tr>
+		<tr>
+			<td><fblk><asmop>mov</asmop> (<asmreg>X</asmreg>)+, <asmreg>A</asmreg></fblk></td>
+			<td><fblk><asmop>mov</asmop> (<asmreg>X</asmreg>+), <asmreg>A</asmreg></fblk></td>
+		</tr>
+	</tbody>
+</table>
+
+<p>For the SPC700, the 1-bit instructions use mnemonics that address the bit directly rather than at the end of the operand.</p>
+
+<p>Using <ftok>!</ftok> for absolute/16-bit addressing is not supported, as it conflicts with the syntax for variables. Use <ftok>.w</ftok> instead.</p>
+
+<h4>Miscellaneous</h4>
+
+<p>When it is safe to do so, dummy operands will be assembled to help keep code aligned even with invalid syntax. For example, <nowrap><fblk>JSR #1</fblk></nowrap> will assemble as <nowrap><fblk>20 00 00</fblk></nowrap>. An error will still be emitted, because this is not a valid addressing mode; however, the given mnemonic can only ever assemble with a 16-bit operand, so a placeholder instruction is added to help maintain the address of code that follows.</p>
+
+
+<h3>Program counter</h3>
+
+<p>Futaba tracks three different positions as it assembles:</p>
+
+<p>The <b>program counter</b> or <b>pc</b> of code or data is the physical location as it appears on the SNES system bus. 
+
+<p>The <b>provenance</b>{% include footnote content="After much deliberation, I chose &quot;provenance&quot; as the nomenclature because it was a synonym for &quot;origin&quot;, and I wanted something that was similar to the org directive&mdash;org being short for origin." %} or <b>site</b> of code or data is the location in memory that it should be interprated as being in. For most program code, provenance and program counter are identical, but for content that is accessed elsewhere, such as sound engine code on the APU, provenance will differ.</p>
+
+<p>The <b>binary offset</b> of code or data is the physical location of it in the final <code>.sfc</code> file. This can be vastly different from the program counter or provenance, depending on the mapper mode.</p>
+
+<h4>Controlling the program counter</h4>
+
+<p>The <fkey id="directive-org">org</fkey> directive moves the program counter (and thus assembly) to a specific address. This address is affected by the mapping mode of the ROM.</p>
+
+<p>The <fkey id="directive-site">site</fkey> directive stages assembly elsewhere without changing the actual program counter. This is useful for writing source code that is relocated, such as to WRAM or ARAM. To reset provenance back to being the same as the program counter, use {{SPLAT}} as its argument.</p>
+
+<p>The <fkey>org</fkey> and <fkey>site</fkey> directives both require an expression to be immediately resolved. The <a href="#symbol_properties">default symbol context</a> of an <fkey>org</fkey> expression is ROM address. Likewise, the default symbol context of <fkey>site</fkey> is provenance.</p>
+
+<p>The current program counter can be saved and recovered using the <fkey id="directive-pushpc">pushpc</fkey> and <fkey id="directive-pullpc">pullpc</fkey> directives. The current provenance can be saved and recovered using the <fkey id="directive-pushsite">pushsite</fkey> and <fkey id="directive-pullsite">pullsite</fkey> directives.</p>
+
+<p>Assembly can be advanced an arbitrary number of bytes without writing using the <fkey>skip</fkey> directive.</p>
+
+<p>The <fkey id="directive-align">align</fkey> and <fkey id="directive-arrange">arrange</fkey> directives can be used to skip ahead the necessary number of bytes for the program counter and provenance, respectively, to be an exact multiple of the value supplied.</p>
+
+<p>The <fkey id="directive-skipto">skipto</fkey> directive advances forward until the given provenance is reached. If this results in a negative change, an error will be emitted.</p>
+
+<p>The <fkey id="directive-warnpc">warnpc</fkey> and <fkey id="directive-warnsite">warnsite</fkey> directive can be used to emit errors if the current program counter or provenance, respectively, is beyond a given address. Warning and relocating the program counter can be performed together with the <fkey id="directive-safeorg">safeorg</fkey> directive.</p>
+
+<p>The <fkey id="directive-rebank">rebank</fkey> directive can be used to change only the bank of the current program counter. This directive includes special syntax to control paging: prefixing the expression with the <nowrap><ftok>&gt;</ftok></nowrap> token will force <nowrap>bit 15</nowrap> of the address to be set, while the <nowrap><ftok>&lt;</ftok></nowrap> token will force it to be reset.</p>
+
+<div class="futexample">
+<fkey>site</fkey> $998123 <fcom>; provenance: $99:8123</fcom>
+<fkey>rebank</fkey> $BE <fcom>; provenance: $BE:8123</fcom>
+<fkey>rebank</fkey> <ftok>&lt;</ftok>$7E <fcom>; provenance: $7E:0123</fcom>
+<fkey>rebank</fkey> <ftok>&gt;</ftok>$7E <fcom>; provenance: $7E:8123</fcom>
+</div>
+
+<p>The <fkey id="directive-bankguard">bankguard</fkey> directive can be used to change when errors are emitted if certain boundaries are crossed by the program counter:</p>
+
+<ul>
+	<li><fkey id="directive-bankguard-off">bankguard off&nbsp;</fkey> &ndash; disables all errors</li>
+	<li><fkey id="directive-bankguard-half">bankguard half</fkey> &ndash; error on crossing from <addr>xx:FFFF</addr> to <addr>xx+1:0000</addr> and from <addr>xx:7FFF</addr> to <addr>xx:8000</addr></li>
+	<li><fkey id="directive-bankguard-full">bankguard full</fkey> &ndash; error on crossing from <addr>xx:FFFF</addr> to <addr>xx+1:0000</addr></li>
+</ul>
+
+<h3>Data statements</h3>
+
+<p>Four directives are supplied for adding arbitrary data directly into a program:</p>
+
+<ul>
+	<li><asmop>db</asmop> (8-bit)</li>
+	<li><asmop>dw</asmop> (16-bit)</li>
+	<li><asmop>dl</asmop> (24-bit)</li>
+	<li><asmop>dd</asmop> (32-bit)</li>
+</ul>
+
+<p>These directives take a comma separated list of expressions, variables, and/or strings. Expressions will insert the value they resolve to. Strings will be treated as an array of characters and insert each encoded character separately. All values will be padded or truncated to the element size.</p>
+
+<p>Individual elements can be skipped with a {{ SPLAT }}. This is useful for patching larger tables with partial edits.</p>
+
+<!---
+
+       Leaving this undocumented for now, because its usage is discourage
+
+<p>The <fkey id="directive-raw">raw</fkey> directive can be used to directly paste unformatted data into a program. This directive is intended for facilitating debugging. Its use for general data statements is discouraged.</p>
+
+<div class="futexample">
+<fkey>org</key> <addr>$0D9381</addr>
+<fkey>raw</fkey> 918B4FF23BE6FF9CB2A34B2EF37BD2BC
+<fkey>raw</fkey> EAE30DAB2047B34A133B4ECE532A9C2F
+<fkey>raw</fkey> 74A695894675DFA7B2130C2DBFDECCF7
+<fkey>raw</fkey> B4386776912196D20A72B4C7A80F64A3
+</div>
+--->
+
+
+<h3>Symbols</h3>
+
+<p>A symbol is a read-only token that represents an integer. Symbols can be used to represent memory addresses or program constants.</p>
+
+<p>All symbols must have a unique name; however, special syntax allows symbols with similar names to be created as part of larger hierarchies.</p>
+
+<p>User-created symbol names must begin with a letter or underscore and may be followed by zero or more letters, numbers, and/or underscores.</p>
+
+<div class="futexample">
+Dragon: <fcom>; valid!</fcom>
+Wyvern: <fcom>; valid!</fcom>
+Dragon2: <fcom>; valid!</fcom>
+_Dragon: <fcom>; valid!</fcom>
+3LeggedWyvern: <fcom>; invalid!</fcom>
+Three-LeggedWyvern: <fcom>; invalid!</fcom>
+A: <fcom>; invalid! see below</fcom>
+</div>
+
+<p>A handful of keywords are reserved and cannot be used as a symbol name:</p>
+
+<div id="keywords">
+	<ul><li>A</li> <li>X</li> <li>Y</li> <li>a</li> <li>x</li> <li>y</li> <li>C</li> <li>c</li> <li>SP</li> <li>Sp</li> <li>sp</li> <li>sP</li></ul>
+
+	<ul><li>R0</li> <li>R1</li> <li>R2</li> <li>R3</li> <li>R4</li> <li>R5</li> <li>R6</li> <li>R7</li> <li>R8</li> <li>R9</li> <li>R10</li> <li>R11</li> <li>R12</li> <li>R13</li> <li>R14</li> <li>R15</li></ul>
+	<ul><li>r0</li> <li>r1</li> <li>r2</li> <li>r3</li> <li>r4</li> <li>r5</li> <li>r6</li> <li>r7</li> <li>r8</li> <li>r9</li> <li>r10</li> <li>r11</li> <li>r12</li> <li>r13</li> <li>r14</li> <li>r15</li></ul>
+</div>
+
+
+<h4>Labels</h4>
+
+<p>Labels are symbols declared inline to define the location of code or data. Labels are declared by affixing a <nowrap>colon (<ftok>:</ftok>)</nowrap> to an identifier with no space in between.</p>
+
+<p>Sublabels are declared by prefixing an alphanumeric name with a <nowrap>dot (<ftok>.</ftok>)</nowrap>. Sublabels can be accessed within their scope by dot-prefix-name alone. Sublabels can also be accessed explicitly through their hierarchy. Nested sublabels can be declared by prepending additional dots, up to 20 levels deep.</p>
+
+<div class="futexample">
+<flbl>Dragon:</flbl>
+<fslb>.main</fslb> <fincom>; <fblk>Dragon.main</fblk></fincom>
+	<asmop>LDA</asmop><ftok>.b</ftok> <immval>#$04</immval>
+
+<fslb>..exit</fslb> <fincom>; <fblk>Dragon.main.exit</fblk></fincom>
+	<asmop>BRA</asmop> <fslb>.draw</fslb> <fcom>; becomes <fblk>Dragon.draw</fblk></fcom>
+
+<fslb>.draw</fslb> <fincom>; <fblk>Dragon.draw</fblk></fincom>
+	<asmop>STA</asmop><ftok>.b</ftok> <addr>$00</addr>
+
+<fslb>..exit</fslb> <fincom>; <fblk>Dragon.draw.exit</fblk></fincom>
+	<asmop>RTS</asmop>
+
+<flbl>Wyrm:</flbl>
+	<asmop>LDA</asmop><ftok>.b</ftok> <immval>#$05</immval>
+	<asmop>BRA</asmop> Dragon.draw
+
+<flbl>Dog:</flbl>
+	<asmop>JMP</asmop> Dragon.draw.exit
+
+<fslb>..exit</fslb> <fcom>; invalid! no single-dot sublabel exists to be its parent</fcom>
+</div>
+
+<p>Each declaration of a top-level label creates a new hierarchy for sublabels. An extrinsic label that exists outside any hierarchy can be declared by prefixing a label with the <nowrap>pound (<ftok>#</ftok>)</nowrap> token.</p>
+
+<div class="futexample">
+<flbl>Dragon:</flbl>
+<fslb>.draw</fslb>
+
+<flbl>#Wyrm:</flbl>
+	<asmop>BRA</asmop> <fslb>.draw</fslb> <fcom>; valid, uses <fblk>Dragon.draw</fblk></fcom>
+
+<flbl>Dog:</flbl>
+	<asmop>BRA</asmop> <fslb>.draw</fslb> <fcom>; invalid!</fcom>
+</div>
+
+<h4>Assignments</h4>
+
+<p>A basic symbol can be declared and assigned by placing an <nowrap>equals sign (<ftok>=</ftok>)</nowrap> followed by an expression after an identifier.</p>
+
+<div class="futexample">
+MAXHP = 128
+</div>
+
+<p>The assignment expression may include other symbols, but only if they have already been declared and assigned.</p>
+
+<div class="futexample">
+DRAGONHP = MAXHP <fcom>; invalid! MAXHP has not been declared yet</fcom>
+MAXHP    = 128
+WYVERNHP = MAXHP <fcom>; valid</fcom>
+</div>
+
+<h4>Relative labels</h4>
+
+<p>Relative labels can be created by stringing together any number of repeating <ftok>+</ftok> or <ftok>-</ftok> to create forward- and backward-relative labels, respectively. These labels can then be used in other expressions to find the nearest matching label in the respective direction.</p>
+
+<div class="futexample">
+-- <fcom>; let's call this location A</fcom>
+	<asmop>BCS</asmop><ftok></ftok> -- <fcom>; branches to A</fcom>
+	<asmop>BCC</asmop><ftok></ftok> -- <fcom>; branches to A</fcom>
+
+-- <fcom>; let's call this location B</fcom>
+	<asmop>BCS</asmop><ftok></ftok> ++ <fcom>; branches to C</fcom>
+	<asmop>BCC</asmop><ftok></ftok> -- <fcom>; branches to B</fcom>
+
+++ <fcom>; let's call this location C</fcom>
+</div>
+
+<p>To be used in any larger expression, relative labels <u>must</u> be enclosed in parentheses.</p>
+
+<div class="futexample">
+	<asmop>LDA</asmop><ftok>.l</ftok> ++++ <fcom>; valid</fcom>
+	<asmop>LDA</asmop><ftok>.l</ftok> (++++)+2 <fcom>; valid</fcom>
+	<asmop>JMP</asmop><ftok>.w</ftok> (----)+2 <fcom>; valid</fcom>
+	<asmop>JMP</asmop><ftok>.w</ftok> ----+2 <fcom>; invalid! this is interpreted as 5 separate unary operators</fcom>
+</div>
+
+<h4>Pools</h4>
+
+<p>Pools are special groups declared with the <fkey id="directive-pool">pool</fkey> directive followed by one or more top-level label names. Pools can be used to declare sublabels under a hierarchy before that hierarchy exists. Pools can also be used to create sublabels that belong to multiple distinct hierarchies. Pools are closed using the <fkey id="directive-endpool">endpool</fkey> directive.</p>
+
+<div class="futexample">
+<fkey>pool</fkey> Dragon Wyvern
+
+<fslb>.health</fslb> <fcom>; Creates both <fblk>Dragon.health</fblk> and <fblk>Wyvern.health</fblk></fcom>
+
+<fslb>.attack</fslb> <fcom>; Creates both <fblk>Dragon.attack</fblk> and <fblk>Wyvern.attack</fblk></fcom>
+
+<fkey>endpool</fkey>
+
+<flbl>Dragon:</flbl>
+	<asmop>LDA</asmop><ftok>.w</ftok> <fslb>.health</fslb>
+	<asmop>LDX</asmop><ftok>.w</ftok> <fslb>.attack</fslb>
+
+<flbl>Wyvern:</flbl>
+	<asmop>LDA</asmop><ftok>.w</ftok> <fslb>.health</fslb>
+	<asmop>LDX</asmop><ftok>.w</ftok> <fslb>.attack</fslb>
+</div>
+
+<p>New top-level hierarchies cannot be created inside pools.</p>
+
+<h4>Buoys</h4>
+
+<p>Buoys are labels used to reference relative offsets and are declared by prefixing a sublabel declaration with one or more <nowrap>carets (<ftok>^</ftok>)</nowrap>. Each caret denotes a reference to an ancestor one level earlier in the hierarchy; thus, the maximum number of carets on a given sublabel is the same as the number of dots. The <a href="#symbol_properties">default value</a> of a buoy is the distance from it to its parent.</p>
+
+<div class="futexample">
+<flbl>Label:</flbl>
+<fslb>.sublabel</fslb>
+	<asmop>db</asmop> <immval>1</immval>
+
+<ftok>^</ftok><fslb>.buoy1</fslb> <fcom>; relative offset is 1 (distance from "Label")</fcom>
+	<asmop>db</asmop> <immval>1</immval>
+
+<ftok>^</ftok><fslb>..buoy1a</fslb> <fcom>; relative offset is 1 (distance from ".buoy1")</fcom>
+<ftok>^^</ftok><fslb>..buoy1b</fslb> <fcom>; relative offset is 2 (distance from "Label")</fcom>
+<ftok>^^^</ftok><fslb>..buoy1c</fslb> <fcom>; invalid declaration</fcom>
+</div>
+
+<div class="futaba-tip">Tip: Use <fblk>^.size</fblk> at the end of a block to create an accessible size symbol under any circumstances.</div>
+
+
+<h4>Docks</h4>
+
+<p id="dock">Docks are reusable labels representing a growing region that can be optionally protected. Declaring a dock automatically enters it as well. To unmount a dock, use the <fkey id="directive-undock">undock</fkey> directive.</p>
+
+<div class="futsyntax">
+<fkey>dock</fkey> {{IDENTIFIER}}
+<fkey>dock</fkey> {{IDENTIFIER}} :: {{ARGSIZE}}
+</div>
+
+<p>Attempting to add code or data to a protected dock under normal circumstances will trigger an error. Content may be added to a docked region in one of two ways: using the <fkey>org</fkey> directive with the dock's name as its only operand.</p>
+
+<div class="futexample">
+<fkey>dock</fkey> Sprites :: $2000 <fcom>; 8kb protected; dock position is 0</fcom>
+
+	<farg>...</farg>
+
+<fhr></fhr>
+
+<fkey>org</fkey> Sprites <fcom>; valid! the region is entered at Sprites+0</fcom>
+
+<flbl>Dragon:</flbl>
+	<asmop>JSR</asmop> DragonStuff
+
+<fhr></fhr>
+
+<fkey>org</fkey> somewhereelse
+
+<fhr></fhr>
+
+<fkey>org</fkey> Sprites <fcom>; valid! the region is entered at Sprites+3</fcom>
+	<asmop>JSR</asmop> MoreDragonStuff
+
+<fhr></fhr>
+
+<fkey>org</fkey> Sprites <fcom>; valid! the region is entered at Sprites+6</fcom>
+<fkey>org</fkey> Sprites+2 <fcom>; invalid! the region is not entered properly</fcom>
+</div>
+
+
+<h4>Pilings</h4>
+
+<p>The <fkey id="directive-piling">piling</fkey> directive can be used to create an anchor point for a self-incrementing data region.</p>
+
+<div class="futsyntax">
+<fkey>piling</fkey> {{IDENTIFIER}}
+<fkey>piling</fkey> {{IDENTIFIER}} :: {{argl}}CAPACITY{{argr}}
+</div>
+
+<p>Pilings can then be added to by using the <fkey id="directive-pile">pile</fkey> directive to assemble a single data statement by placing an {{ALLOC}} followed by the statement.</p>
+
+<div class="futexample">
+<fkey>piling</fkey> Health :: $20 <fcom>; 32 bytes capacity; piling position is 0</fcom>
+
+	<farg>...</farg>
+
+<flbl>Dragon:</flbl>
+	<fkey>pile</fkey> Health :: <asmop>db</asmop> <immval>100</immval> <fcom>; writes 1 byte to piling; position becomes 1</fcom>
+
+	<asmop>JSR</asmop> DragonStuff
+	<asmop>JSR</asmop> MoreDragonStuff
+	<asmop>RTL</asmop>
+
+<flbl>Wyvern:</flbl>
+	<fkey>pile</fkey> Health :: <asmop>db</asmop> <immval>75</immval><fcom>; writes 1 byte to piling; position becomes 2</fcom>
+
+	<asmop>JSR</asmop> DragonStuff
+	<asmop>JSR</asmop> WyvernStuff
+	<asmop>RTL</asmop>
+</div>
+
+<h4>Plopping</h4>
+
+<p>The <fkey id="directive-plop">plop</fkey> directive behaves similarly to <fkey>pile</fkey> with the difference that its first operand is an expression for a SNES address.</p>
+
+<div class="futsyntax">
+<fkey>plop</fkey> {{argl}}ADDRESS{{argr}} :: {{argl}}DATA STATEMENT{{argr}}
+</div>
+
+<p>Plopping allows completely arbitrary data writes with a simplified syntax that is useful for single data entries.</p>
+
+<div class="futexample">
+<flbl>Dragon:</flbl>
+	<fkey>plop</fkey> Health+0 :: <asmop>db</asmop> <immval>100</immval>
+
+<flbl>Wyvern:</flbl>
+	<fkey>plop</fkey> Health+1 :: <asmop>db</asmop> <immval>75</immval>
+</div>
+
+<div class="futaba-warn">Note: The plop and pile directives do not affect the position being assembled. For example, the internal variable <fvab>!:pc</fvab> will return the current program counter and not the position of the data. This is intentional behavior that facilitates the creation of vector tables.</div>
+
+
+<h4>Allocations</h4>
+
+<p>The <fkey id="directive-allocate">allocate</fkey> directive can be used to create blocks of allocated address space using the following syntaxes:</p>
+
+
+<div class="futsyntax">
+<fkey>allocate</fkey> {{ ADDRESS }}
+<fkey>allocate</fkey> {{ ADDRESS }} :: {{ ARGSIZE }}
+</div>
+
+<p>Inside an allocation block, symbols may be declared in 3 ways:</p>
+
+<ul>
+	<li><fblk>{{ IDENTIFIER }}:</fblk> &ndash; creates a label at the current allocation pointer</li>
+	<li><fblk>{{ IDENTIFIER }} :: {{ ARGSIZE }}</fblk> &ndash; creates a label at the current allocation pointer with the specified size and advances that amount. Labels declared this way also include a size accessible via the <fblk>:size</fblk> property.</li>
+	<li><fblk>{{ IDENTIFIER }} = {{ EXPRESSION }}</fblk> &ndash; assigns a symbol with the standard rules</li>
+</ul>
+
+<p>To close the current allocation block, use the <fkey id="directive-endallocate">endallocate</fkey> directive.</p>
+
+<p>Allocation blocks can be chained by reusing the <fkey>allocate</fkey> directive. To continue a block where the previous block ends, use a {{SPLAT}} for the address operand. This address is remembered across invocations.</p>
+
+<div class="futexample">
+<fkey>allocate</fkey> $7E0000 :: $0100 <fcom>; block begins at $7E0000 256 bytes</fcom>
+
+<fkey>allocate</fkey> * :: $0100 <fcom>; block begins at $7E0100</fcom>
+
+<fkey>allocate</fkey> * <fcom>; block begins at $7E0200</fcom>
+	SpriteHP :: 16
+
+<fkey>allocate</fkey> * <fcom>; block begins at $7E0210</fcom>
+</div>
+
+
+<p>Allocation blocks are more restricted than code blocks, only allowing the following keywords:</p>
+
+<ul id="allocate-keywords">
+	<li><fkey>allocate</fkey></li>
+	<li><fkey>endallocate</fkey></li>
+	<li><fkey>print</fkey></li>
+	<li><fkey>printf</fkey></li>
+	<li><fkey>warn</fkey></li>
+	<li><fkey>error</fkey></li>
+	<li><fkey>macro</fkey></li>
+	<li><fkey>endmacro</fkey></li>
+	<li><fkey>function</fkey></li>
+	<li><fkey>if</fkey></li>
+	<li><fkey>else</fkey></li>
+	<li><fkey>endif</fkey></li>
+	<li><fkey>encoder</fkey></li>
+	<li><fkey>skip</fkey></li>
+</ul>
+
+<div class="futaba-warn">Allocation blocks use a separate program counter from code. All allocated symbols return the same value for their provenance, program counter, and binary offset.</div>
+
+<h4>Post-label white space</h4>
+
+<p>Inline label declarations that are not created with keywords automatically begin a new command after their declaration; however, they must be followed by white space, a line break, a comment, or an end of file.</p>
+
+<div class="futexample">
+LabelA: <fcom>; valid! followed by a newline</fcom>
+<fslb>.sublabel</fslb> <fcom>; valid! ditto</fcom>
+
+LabelB:<fincom>;comment</fincom> <fcom>; valid! followed by a comment</fcom>
+<fslb>.sublabel</fslb><fincom>;comment</fincom> <fcom>; valid! ditto</fcom>
+
+LabelC: <asmop>NOP</asmop> <fcom>; valid! followed by a space</fcom>
+<fslb>.sublabel</fslb> <asmop>NOP</asmop><fcom>; valid! ditto</fcom>
+
+LabelD: : <asmop>NOP</asmop> <fcom>; valid!</fcom>
+<fslb>.sublabel</fslb> : <asmop>NOP</asmop> <fcom>; valid!</fcom>
+
+LabelE:NOP <fcom>; invalid! followed by normal text</fcom>
+<fslb>.sublabel</fslb>!VAR = 1 <fcom>; invalid! ditto</fcom>
+<fslb>.sublabel:</fslb> <fcom>; invalid! colons don't belong on sublabels</fcom>
+
+++ -- <fcom>; two on the same line? perfectly valid!</fcom>
+</div>
+
+
+<h4 id="symbol_properties">Symbol properties and context</h4>
+
+<p>All symbols represent at least 3 values: a binary offset, a ROM address, and a provenance.</p>
+
+<p>By default, labels and sublabels return their provenance when used in an expression; however, certain directives force a different context to be used. For example, the <a href="#directive-org"><fkey>org</fkey> directive</a> evaluates expressions with the "ROM address" context, causing all symbols to default to the ROM address they hold.</p>
+
+<p>The expression context can be overridden on individual symbols by appending a property <nowrap>accessor (<ftok>:</ftok>)</nowrap> and a propertty name. No spaces should separate the symbol name, specifier token, and property name.</p>
+
+<div class="futexample">
+<fkey>print</fkey> Dragon <fcom>; provenance</fcom>
+<fkey>print</fkey> Dragon:offset <fcom>; binary offset</fcom>
+</div>
+
+<h3 id="math">Expressions</h3>
+
+<p>Futaba supports expressions for nearly all operands and arguments. Expressions use standard programmer syntax for mathematical operations with C-style function calls, and several assembly-specific operators.</p>
+
+<p>Expressions follow C#'s operator precedence with custom operators given the precedence that makes the most sense under those rules.</p>
+
+<p>The value of all expressions and subexpressions are stored as a <code>decimal</code> type value. This offers higher precision than <code>double</code> with negligible performance impact for Futaba's usecase.</p>
+
+<table id="operator-precedence" class="{{ tblclasses }} float-right hilite aligncenter">
+	<thead><tr><th>Operator precedence</th></tr></thead>
+
+	<tr><td><fblk>(a)</fblk></td></tr>
+	<tr><td><fblk>func(a)</fblk></td></tr>
+	<tr><td><fblk>a?</fblk></td></tr>
+	<tr><td><fblk>-a</fblk> <fblk>+a</fblk> <fblk>&lt;a</fblk> <fblk>&gt;a</fblk> <fblk>^a</fblk> <fblk>&lt;&amp;a</fblk> <fblk>&gt;&amp;a</fblk> <fblk>^&amp;a</fblk></td></tr>
+	<tr><td><fblk>a*b</fblk> <fblk>a/b</fblk> <fblk>a//b</fblk> <fblk>a%b</fblk></td></tr>
+	<tr><td><fblk>a+b</fblk> <fblk>a-b</fblk></td></tr>
+	<tr><td><fblk>a&lt;&lt;b</fblk> <fblk>a&gt;&gt;b</fblk> <fblk>a&gt;&gt;&gt;b</fblk></td></tr>
+	<tr><td><fblk>a&amp;b</fblk></td></tr>
+	<tr><td><fblk>a^b</fblk></td></tr>
+	<tr><td><fblk>a|b</fblk> <fblk>a][b</fblk></td></tr>
+	<tr><td><fblk>a&amp;&amp;b</fblk></td></tr>
+	<tr><td><fblk>a||b</fblk></td></tr>
+	<tr><td><fblk>a&gt;b</fblk> <fblk>a&lt;b</fblk> <fblk>a&gt;=b</fblk> <fblk>a&lt;=b</fblk></td></tr>
+	<tr><td><fblk>a==b</fblk> <fblk>a!=b</fblk></td></tr>
+	<tr><td><fblk>a??b</fblk></td></tr>
+</table>
+
+<table class="{{ tblclasses }} noheaderstripes topheaders hilite">
+	<tr class="header"><th colspan="3" class="header">Binary operators</th></tr>
+
+	{%- for item in site.data.futaba.operators.binary -%}
+		<tr>
+			<td><fvar>a</fvar><fop>{{- item.name -}}</fop><fvar>b</fvar></td>
+			<td colspan="2">{{- item.desc -}}</td>
+		</tr>
+	{%- endfor -%}
+
+	<tr class="header"><th colspan="3" class="header">Logical operators</th></tr>
+
+	{%- for item in site.data.futaba.operators.binary_logic -%}
+		<tr>
+			<td><fvar>a</fvar><fop>{{- item.name -}}</fop><fvar>b</fvar></td>
+			<td colspan="2">{{- item.desc -}}</td>
+		</tr>
+	{%- endfor -%}
+
+	<tr class="header"><th colspan="3" class="header">Unary operators</th></tr>
+
+	{%- for item in site.data.futaba.operators.unary -%}
+		<tr>
+			<td><fop>{{- item.name -}}</fop><fvar>a</fvar></td>
+			<td colspan="2">{{- item.desc -}}</td>
+		</tr>
+	{%- endfor -%}
+
+	<tr class="header"><th colspan="3" class="header">New binary operators</th></tr>
+
+	{%- for item in site.data.futaba.operators.binary_new -%}
+		<tr>
+			<td><fvar>a</fvar><fop>{{- item.name -}}</fop><fvar>b</fvar></td>
+			<td>{{- item.desc -}}</td>
+			<td>{{- item.usage -}}</td>
+		</tr>
+	{%- endfor -%}
+
+	<tr class="header"><th colspan="3" class="header">New unary operators</th></tr>
+
+	{%- for item in site.data.futaba.operators.unary_new -%}
+		<tr>
+			<td><fop>{{- item.name -}}</fop><fvar>a</fvar></td>
+			<td>{{- item.desc -}}</td>
+			<td>{{- item.usage -}}</td>
+		</tr>
+	{%- endfor -%}
+	{%- for item in site.data.futaba.operators.unary_postfix -%}
+		<tr>
+			<td><fvar>a</fvar><fop>{{- item.name -}}</fop></td>
+			<td>{{- item.desc -}}</td>
+			<td>{{- item.usage -}}</td>
+		</tr>
+	{%- endfor -%}
+
+
+</table>
+
+<h4>White space</h4>
+
+<p>Any number of space or tab characters may appear between most elements in an expression; however, inidivual elements cannot have white space within them.</p>
+
+<ul>The following invocations are considered a single element and thus cannot have space between their components:
+	<li><fblk>func(</fblk> &ndash; opening parenthesis must immediately follow function names</li>
+	<li><fblk>symbol:property</fblk> &ndash; no white space before or after colon when acessing symbol properties</li>
+</ul>
+
+<h4 id="truthiness">Truthiness</h4>
+
+<p>Any value or expression that evaluates to exactly 0 is considered false. All other results are considered true.</p>
+
+<div class="futaba-warn">The logical <nowrap>AND (<ftok>&&</ftok>)</nowrap> and <nowrap>logical OR (<ftok>||</ftok>) operators</nowrap> are not short-circuiting. Both operands will always be evaluated (unless the left operand fails to resolve, in which case the failure will immediately propagate upwards).</div>
+
+<h4>Null coalescence</h4>
+
+<p>The null coalescence operators can be used to provide fallbacks for invalid subexpressions in addition to undeclared symbols and variables.</p>
+
+<div class="futexample">
+<fkey>print</fkey> (1 <fop>/</fop> 0) <fcom>; error</fcom>
+<fkey>print</fkey> (1 <fop>/</fop> 0)<fop>?</fop> <fcom>; evaluates to 0</fcom>
+<fkey>print</fkey> (1 <fop>/</fop> 0) <fop>??</fop> 5 <fcom>; evaluates to 5</fcom>
+</div>
+
+<h4>Bitwise restrictions</h4>
+
+<p>The bitwise operators only function on integral types. The fractional part of any operand will be automatically discarded.</p>
+
+<div class="futexample">
+<fkey>print</fkey> 1 <fop>&amp;</fop> 3 <fcom>; evaluates to 1</fcom>
+<fkey>print</fkey> 1 <fop>&amp;</fop> 3.14 <fcom>; evaluates to 1</fcom>
+</div>
+
+
+
+
+<h3 id="variables">Variables</h3>
+
+<p>Variables in Futaba are dynamically typed and can be either numbers or strings. Variables are declared with the following syntax. A variable's identifier can only contain letters, numbers, and underscores; however, unlike symbols, there are no restrictions on the first character.</p>
+
+<div class="futsyntax">
+<fvab>!</fvab>{{IDENTIFIER}} = {{EXPRESSION}}
+<fvab>!</fvab>{{IDENTIFIER}} = <fstr>"{{argl}}STRING{{argr}}"</fstr>
+</div>
+
+<p></p>
+
+<p>A variable's type is dictated by the operand of its assignment. String variables must enclose their contents in quotation <nowrap>marks (<ftok>"</ftok>)</nowrap>. All other operands will be treated as mathematical expressions and must resolve to some value. A variable can be reassigned at any point, with subsequent dereferences using the new value.</p>
+
+<div class="futexample">
+<fvab>!VAR1</fvab> = 3 <fcom>; value type</fcom>
+<fvab>!VAR2</fvab> = <fstr>"3"</fstr> <fcom>; string type</fcom>
+<fvab>!VAR3</fvab> = <fvab>!VAR2</fvab> <fcom>; !VAR3 is a string type</fcom>
+
+<fvab>!VAR4</fvab> = <fvab>!VAR3</fvab> + 3 <fcom>; !VAR3 is treated as a string inside an expression</fcom>
+</div>
+
+<p>Variables inside strings are automatically interpolated. To prevent interpolation, escape the variable with a <nowrap>backslash (<ftok>&bsol;</ftok>)</nowrap>.</p>
+
+<div class="futexample">
+<fvab>!VAR1</fvab> = 3
+
+<fkey>print</fkey> <fvab>!VAR1</fvab> <fcom>; prints <fblk>3</fblk></fcom>
+<fkey>print</fkey> <fstr>"<fvab>!VAR1</fvab>"</fstr> <fcom>; prints <fblk>3</fblk></fcom>
+<fkey>print</fkey> <fstr>"\!VAR1"</fstr> <fcom>; prints <fblk>!VAR1</fblk></fcom>
+</div>
+
+<p>The <ftok>?=</ftok> assignment operator can be used to assign a variable only when it does not yet exist.</p>
+
+<div class="futexample">
+<fvab>!VAR1</fvab> = 3
+<fkey>print</fkey> <fvab>!VAR1</fvab> <fcom>; prints <fblk>3</fblk></fcom>
+
+<fvab>!VAR1</fvab> ?= 15
+<fkey>print</fkey> <fvab>!VAR1</fvab> <fcom>; prints <fblk>3</fblk></fcom>
+</div>
+
+<p>The following compound assignments are available for numeric variables: <ftok>+=</ftok>, <ftok>-=</ftok>, <ftok>*=</ftok>, <ftok>/=</ftok>. String variables only support the <ftok>+=</ftok> compound assignment, which appends the operand to the end of the string. No other string concatenation operator is supported. To concatenate string variables to a new variable, use string interpolation; <nowrap>e.g.: <fblk>!C="!A!B"</fblk></nowrap>.</p>
+
+<div class="futaba-warn">Note: Using the <ftok>+=</ftok> operator on a string variable when the operand is an expression will interpret the expression as a naked string without parsing it. Conversely, using the <ftok>+=</ftok> operator on a numeric variable with a string will first cast the value to a string then append it.</div>
+
+<h4>Internal variables</h4>
+
+<p>A handful of internal variables are provided to expose properties of the assembler or useful constants. These may be accessed by including a <nowrap>colon (<ftok>:</ftok>)</nowrap> before the variable's name. Internal variables are read-only.</p>
+
+<table class="{{ tblclasses }} topheaders hilite align1right">
+	<thead><tr><th>Name</th><th>Value</th></tr></thead>
+
+	{%- for item in site.data.futaba.internal_variables -%}
+		<tr>
+			<td><fvab>!:{{- item.name -}}</fvab></td>
+			<td>{{- item.desc -}}</td>
+		</tr>
+	{%- endfor -%}
+</table>
+
+
+
+<h3 id="functions">Functions</h3>
+
+<p>Functions are declared by using the <fkey id="directive-function">function</fkey> keyword with the following syntax:</p>
+
+<div class="futsyntax">
+<fkey>function</fkey> {{IDENTIFIER}}( <farg>[PARAMETERS, ...]</farg> ) => {{EXPRESSION}}
+</div>
+
+<p>Parameters in the function body are dereferenced by enclosing their names with <nowrap>curly braces (<fblk>{<farg>name</farg>}</fblk>)</nowrap>.</p>
+
+<div class="futexample">
+<fkey>function</fkey> <ffn>SquareHalf</ffn>(<fvar>a</fvar>, <fvar>b</fvar>) => (<fvar>{a}</fvar>*<fvar>{a}</fvar> + <fvar>{b}</fvar>*<fvar>{b}</fvar>) / 2
+
+<fkey>print</fkey> <ffn>SquareHalf</ffn>(10, 8) <fcom>; calculates <fblk>(10*10 + 8*8) / 2</fblk></fcom>
+</div>
+
+<p>On declaration, functions create a syntax tree in place and capture the current state of any variables.</p>
+
+<div class="futexample">
+<fvab>!VAR</fvab> = 3
+<fkey>function</fkey> <ffn>GetVar</ffn>() => <fvab>!VAR</fvab> <fcom>; !VAR is captured in its current state</fcom>
+
+<fkey>print</fkey> <ffn>GetVar</ffn>() <fcom>; prints 3</fcom>
+
+<fvab>!VAR</fvab> = 5
+<fkey>print</fkey> <ffn>GetVar</ffn>() <fcom>; prints 3</fcom>
+</div>
+
+
+
+<h4>Built-in functions</h4>
+
+<p>A number of built-in functions are provided. These functions' names are case-sensitive.</p>
+
+<table class="{{ tblclasses }} topheaders hilite">
+	<thead><tr><th>Name</th><th>Usage</th></tr></thead>
+
+	{%- for item in site.data.futaba.functions -%}
+		<tr>
+			{%- assign desc=item.desc | strip -%}
+			{%- assign argsin="" -%}
+
+			{%- for argname in item.args -%}
+				{%- assign reparg = forloop.index | prepend: "%" -%}
+				{%- assign argform = argname | prepend: "<fvar>" | append: "</fvar>" -%}
+				{%- assign desc = desc | replace: reparg, argform -%}
+				{%- assign argsin = argsin | append: argform -%}
+				{%- unless forloop.last -%}{%- assign argsin = argsin | append: "," %}{%- endunless -%}
+			{%- endfor -%}
+
+			{%- assign desc = desc | replace: "%0", "<fvar>n</fvar>" -%}
+
+			<td><fex><ffn>{{- item.name -}}</ffn>({{- argsin -}})</fex></td>
+			<td>{{ desc }}</td>
+
+		</tr>
+	{% endfor %}
+</table>
+
+<div class="futaba-warn">Note: Future releases may potentially add more functions; however, these functions will always have lowercase identifiers.</div>
+
+<h3>Code/data management directives</h3>
+
+<h4 id="macros">Macros</h4>
+
+<p>Macros provide robust, parameterized text substitution in source code. Macros are declared with the <fkey id="directive-macro">macro</fkey> directive followed by a unique alphanumeric identifier then zero or more parameters enclosed in parentheses. After the macro header is any number of valid assembly source lines, with the macro body terminated by the <fkey id="directive-endmacro">endmacro</fkey> directive.</p>
+
+<div class="futsyntax">
+<fkey>macro</fkey> {{IDENTIFIER}}( <farg>[PARAMETERS, ...]</farg> )
+
+{{argl}}...{{argr}}
+
+<fkey>endmacro</fkey>
+</div>
+
+<p>Parameters in the macro body are dereferenced by enclosing their names with <nowrap>curly braces (<fblk>{<farg>name</farg>}</fblk>)</nowrap>. The special <nowrap>variable <ftok>{?}</ftok></nowrap> can be used to insert an invocation-unique string which may be used for macro-scoped labels or other similar purposes.</p>
+
+<div class="futexample">
+<fkey>macro</fkey> <ffn>Sequence</ffn>(<fvar>a</fvar>)
+	<asmop>db</asmop> <fvar>{a}</fvar>, <fvar>{a}</fvar>+3, <fvar>{a}</fvar>+6
+<fkey>endmacro</fkey>
+
+<ffn>%Sequence</ffn>(2) <fcom>; assembles <fblk>db 2, 5, 8</fblk></fcom>
+</div>
+
+<div class="futexample">
+<fkey>macro</fkey> <ffn>MakeLabel</ffn>()
+<ftok>{?}</ftok>Label:
+	<asmop>db</asmop> <ftok>{?}</ftok>Label
+<fkey>endmacro</fkey>
+
+<ffn>%MakeLabel</ffn>()
+<ffn>%MakeLabel</ffn>() <fcom>; no conflict</fcom>
+</div>
+
+<p>The arguments to a macro call are raw strings that are inserted directly into the macro body. To prevent trimming of whitespace or early comma detection, wrap indivudual arguments in quotes.</p>
+
+<div class="futexample">
+<ffn>%SomeMacro</ffn>(     Stuff     ) <fcom>; arg0 is <fblk>Stuff</fblk></fcom>
+<ffn>%SomeMacro</ffn>(     "Stuff"     ) <fcom>; arg0 is <fblk>Stuff</fblk></fcom>
+<ffn>%SomeMacro</ffn>(     ""Stuff""     ) <fcom>; arg0 is <fblk>"Stuff"</fblk></fcom>
+<ffn>%SomeMacro</ffn>("     Stuff     ") <fcom>; arg0 is <fblk style="white-space:pre;">     Stuff     </fblk></fcom>
+<ffn>%SomeMacro</ffn>(   ""     Stuff     ""   ) <fcom>; arg0 is <fblk style="white-space:pre;">"     Stuff     "</fblk></fcom>
+</div>
+
+<div class="futaba-warn">Weirdness: Due to how macro variables are inserted, currently only the closing brace can be escaped to prevent a parameter dereference from being parsed.</div>
+
+<h4>incsrc</h4>
+
+<p>The <fkey id="directive-incsrc">incsrc</fkey> directive can be used to assemble source from other files. This directive takes a comma-separated list of strings containing file paths to other source code.</p>
+
+<div class="futsyntax">
+<fkey>incsrc</fkey> {{FILENAME}}
+<fkey>incsrc</fkey> {{argl}}<fstr>"FILE1"</fstr>{{argr}}, {{argl}}<fstr>"FILE2"</fstr>{{argr}}
+</div>
+
+<p>Files may be nested and/or chained up to 512 levels deep. For the purposes of this limit, files listed together in a single directive are considered nested inside each other. Macros also count towards this limit, as they are replaced with ephemeral source objects during assembly.</p>
+
+<h4>incbin</h4>
+
+<p>The <fkey id="directive-incbin">incbin</fkey> directive can be used to insert raw data by copying it from another file. This directive takes a comma-separated list of strings containing file paths to data. There is no hard limit to the number of files that can be listed with a single directive.</p>
+
+<div class="futsyntax">
+<fkey>incbin</fkey> {{FILENAME}}
+<fkey>incbin</fkey> {{argl}}<fstr>"FILE1"</fstr>{{argr}}, {{argl}}<fstr>"FILE2"</fstr>{{argr}}
+</div>
+
+<p>Slices of data can be inserted by specifying a range after the file path string, enclosed in brackets. This range is an inclusive start to an exclusive end, with both operands taking an expression.</p>
+
+<div class="futsyntax">
+<fkey>incbin</fkey> {{FILENAME}}[{{argl}}START{{argr}}::{{argl}}END{{argr}}]
+<fkey>incbin</fkey> {{FILENAME}}[::{{argl}}END{{argr}}] <fcom>; start is implicitly 0</fcom>
+<fkey>incbin</fkey> {{FILENAME}}[{{argl}}START{{argr}}::] <fcom>; end is implicitly the size of the file</fcom>
+</div>
+
+
+<p>A label can be attached to a data block by including a bracket-enclosed identifier before the file list:</p>
+
+<div class="futsyntax">
+<fkey>incbin</fkey> [{{IDENTIFIER}}] {{FILENAME}}
+</div>
+
+<p>This label will include a size property that can be accessed using the <fblk>:size</fblk> property. If multiple files are assembled together in a list, this size will be the length of all data inserted by the directive.</p>
+
+<div class="futexample">
+<fkey>incbin</fkey> [<b>HealthData</b>] <fstr>"health_data.bin"</fstr>
+
+<fkey>printf</fkey> <fstr>"Health data contains {0} bytes!"</fstr>, HealthData:size
+</div>
+
+<h4>fill</h4>
+
+<p>The <fkey id="directive-fill">fill</fkey> directive can be used to fill a span of data with a repeated value using the following syntax:</p>
+
+<div class="futsyntax">
+<fkey>fill</fkey> {{argl}}TYPE{{argr}} {{argl}}MODE{{argr}} {{argl}}AMOUNT{{argr}} :: {{argl}}VALUE{{argr}}
+</div>
+
+<ul>Types:
+	<li><fkey id="directive-fill-byte">byte</fkey> &ndash; 8-bit values</li>
+	<li><fkey id="directive-fill-word">word</fkey> &ndash; 16-bit values</li>
+	<li><fkey id="directive-fill-long">long</fkey> &ndash; 24-bit values</li>
+	<li><fkey id="directive-fill-double">double</fkey> &ndash; 32-bit values</li>
+	<li><fkey id="directive-fill-random">random</fkey> &ndash; 8-bit values</li>
+</ul>
+
+<ul>Modes:
+	<li><fex><fkey id="directive-fill-size">size</fkey> {{argl}}VALUE{{argr}}</fex> &ndash; fills the exact size given in bytes. If a larger type is used, this may result in only part of the final value being written.</li>
+	<li><fex><fkey id="directive-fill-count">count</fkey> {{argl}}VALUE{{argr}}</fex> &ndash; fills with this many copies of the supplied value.</li>
+	<li><fex><fkey id="directive-fill-until">until</fkey> {{argl}}ADDRESS{{argr}}</fex> &ndash; fills with as many bytes as are needed to reach the given address (dictated by provenance).</li>
+	<li><fex><fkey id="directive-fill-align">align</fkey> {{argl}}ADDRESS{{argr}}</fex> &ndash; fills with as many bytes as are needed to reach the given alignment (dictated by program counter).</li>
+	<li><fex><fkey id="directive-fill-arrange">arrange</fkey> {{argl}}ADDRESS{{argr}}</fex> &ndash; fills with as many bytes as are needed to reach the given alignment (dictated by provenance).</li>
+</ul>
+
+
+<p>The fill value is an expression or, in the case of <fkey>random</fkey>, an optional seed. If a value is omitted for random fills, the block will consume values from the assembler's shared instance RNG; otherwise, the operand will be treated as a string and its contents will be hashed to seed a new sequence.</p>
+
+<p>Note that the fill value is only calculated once&mdash;when it is parsed in this command. This is still the case even when that value must be resolved later.</p>
+
+<div class="futexample">
+<fkey>fill</fkey> <fkey>byte</fkey> <fkey>count</fkey> 200 :: <immval>$00</immval> <fcom>; 200 bytes</fcom>
+<fkey>fill</fkey> <fkey>word</fkey> <fkey>size</fkey>  200 :: <immval>$1234</immval> <fcom>; 200 bytes</fcom>
+<fkey>fill</fkey> <fkey>word</fkey> <fkey>count</fkey> 200 :: <immval>$1234</immval> <fcom>; 400 bytes</fcom>
+</div>
+
+<h4>Conditional logic</h4>
+
+<p>Simple conditional logic can be checked using the <fkey id="directive-if">if</fkey>, <fkey id="directive-else">else</fkey>, and <fkey id="directive-endif">endif</fkey> directives. If-statements evaluate an expression for <a href="#truthiness">truthiness</a>.</p>
+
+
+
+<h3>Output and Diagnostics</h3>
+
+<h4>Printing</h4>
+
+<p>Four directives are provided for printing to a text stream. The <fkey id="directive-print">print</fkey> directive prints a comma-separated list of tokens, strings, or expressions on a single line. The <fkey id="directive-warn">warn</fkey> and <fkey id="directive-error">error</fkey> directives behave similarly, but they also emit a warning or error, respectively.</p>
+
+<p>The <fkey id="directive-printf">printf</fkey> directive can be used to print a formatted string with the first argument being the format specifier and the remaining arguments being the objects passed to the formatter. This directive uses <a href="https://learn.microsoft.com/en-us/dotnet/fundamentals/runtime-libraries/system-string-format#get-started-with-the-stringformat-method">the .NET string format syntax</a>.</p>
+
+<p>Futaba includes a special format specifier for numbers: <fblk>A</fblk>, which can be used to print a number as a 6-digit hexadecimal string in the form <fblk>$XX:XXXX</fblk>. Futaba also reroutes the <fblk>X</fblk> and <fblk>B</fblk> specifiers on decimal values by truncating the fractional part and converting the value to a 64-bit integer.</p>
+
+<p>All print commands include special shorthands to facilitate printing. These are not reserved words, but they will take priority over symbols with the same name. To work around this, prefix those symbols with a <nowrap>plus sign (<ftok>+</ftok>)</nowrap>, which is effectively a null operation.</p>
+
+<table class="{{ tblclasses }} topheaders hilite align1right">
+	<thead><tr><th>Token</th><th>Prints</th></tr></thead>
+	<tbody>
+		<tr>
+			<td><fblk>pc</fblk></td>
+			<td>Current program counter as a 6-digit hexadecimal string</td>
+		</tr>
+		<tr>
+			<td><fblk>site</fblk></td>
+			<td>Current provenance as a 6-digit hexadecimal string</td>
+		</tr>
+		<tr>
+			<td><fblk>offset</fblk></td>
+			<td>Current binary file offset as a 6-digit hexadecimal string</td>
+		</tr>
+		<tr>
+			<td><fblk>bar</fblk></td>
+			<td>100 hypens; useful as a delimiter</td>
+		</tr>
+	</tbody>
+</table>
+
+
+<h4>Breakpoints</h4>
+
+<p>Breakpoints can be created for a program by inserting a <nowrap>tick mark (<b><ftok>`</ftok></b>)</nowrap> optionally followed by other arguments:</p>
+
+<div class="futsyntax">
+<ftok>`</ftok><farg>[TRIGGERS]</farg><farg>[+INSERT]</farg>
+</div>
+
+<p>Any combination of flags can be combined to declare what actions the breakpoint should break on. If none are specified, then the default triggers will be used.</p>
+
+<ul>
+	<li><fkey>r</fkey> &ndash; trigger this breakpoint on read</li>
+	<li><fkey>w</fkey> &ndash; trigger this breakpoint on write</li>
+	<li><fkey>x</fkey> &ndash; trigger this breakpoint on execute</li>
+</ul>
+
+<p>Zero or one items may be specified as an inserted instruction. The insert is delimited with a plus sign (<ftok>+</ftok>); used by itself, this is treated as "no insert". If not specified at all, then the default instruction will be inserted.</p>
+
+<ul>
+	<li><fkey>+</fkey> &ndash; insert nothing with this breakpoint</li>
+	<li><fkey>+n</fkey> &ndash; insert <asmop>NOP</asmop> with this breakpoint</li>
+	<li><fkey>+b</fkey> &ndash; insert <asmop>BRK</asmop> with this breakpoint</li>
+	<li><fkey>+w</fkey> &ndash; insert <asmop>WDM</asmop> with this breakpoint</li>
+	<li><fkey>+c</fkey> &ndash; insert <asmop>COP</asmop> with this breakpoint</li>
+</ul>
+
+<p>The same arguments above can be used with the <fkey id="directive-breakpoints">breakpoints</fkey> directive to declare the default behavior of naked breakpoints. The default behavior is <fblk>breakpoints rwx+</fblk>.</p>
+
+<div class="futexample">
+<b>`</b> <fcom>; break on Read/Write/Execute, inserts nothing</fcom>
+<b>`</b> <fcom>; break on Read/Write/Execute, inserts nothing</fcom>
+
+<fkey>breakpoints</fkey> rw+n <fcom>; default breakpoint triggers are Read/Write; inserts NOP</fcom>
+
+<b>`</b> <fcom>; break on Read/Write, inserts NOP</fcom>
+<b>`</b>x <fcom>; break on Execute,    inserts NOP</fcom>
+<b>`</b>+b <fcom>; break on Read/Write, inserts BRK</fcom>
+<b>`</b>+ <fcom>; break on Read/Write, inserts nothing</fcom>
+</div>
+
+<ul>Two special keywords exist for the <fkey>breakpoints</fkey> directive:
+	<li><fkey>off</fkey> &ndash; disables breakpoints until the next directive</li>
+	<li><fkey>kill</fkey> &ndash; disables breakpoints for the rest of assembly; future <fkey>breakpoints</fkey> directives are completely ignored</li>
+</ul>
+
+
+<div class="futaba-tip">Tip: Use <fblk>breakpoints kill</fblk> at the beginning of your entry file to cleanly produce release builds.</div>
+
+<h3>Special markup</h3>
+
+<h4>Address markers</h4>
+
+<p>Address markers are beginning-of-the-line annotations that identify where in memory code or data is expected to assemble. These are primarily designed for disassemblies but are not restricted from use in projects of other types.</p>
+
+<div class="futsyntax">
+<farg>|AAAAAA|</farg> <fcom>; program counter</fcom>
+<farg>|AAAAAA:PPPP|</farg> <fcom>; program counter and provenance</fcom>
+</div>
+
+<p>Address markers behave as their own command; a single-line token is not required to put content on the same line.</p>
+
+<p>In addition to providing useful annotation for readers, address markers also emit warnings when they are incorrect.</p>
+
+<div class="futexample">
+<fkey>org</fkey> <addr>$008000</addr>
+<farg>|10BEBE|</farg> <asmop>db</asmop> 0 <fcom>; warning! this annotation is wrong</fcom>
+
+<fkey>site</fkey> <addr>$8000</addr>
+<farg>|10BEBE|</farg> <asmop>db</asmop> 0 <fcom>; warning! provenance is missing</fcom>
+
+<fkey>site</fkey> *
+<farg>|10BEBE:9000|</farg> <asmop>db</asmop> 0 <fcom>; warning! provenance is not necessary</fcom>
+</div>
+
+
+
+<h3>Syntactic sugar</h3>
+
+<h4>Processor flags</h4>
+
+<p>Using square brackets, the processor flags can be referred to by initial in the <asmop>REP</asmop> and <asmop>SEP</asmop> instructions.</p>
+
+<div class="futexample">
+	<asmop>REP</asmop> <immval>#[MXC]</immval> <fcom>; assembles as REP #$31</fcom>
+</div>
+
+
+<h4 id="brop">brop</h4>
+
+<p>Branch instructions can be assembled as brops (<u><b>BR</b></u>anch <u><b>OP</b></u>codes) by using {{ SPLAT }} as their operand. This allows for simpler patches where the type of branch instruction should be changed but the location it branches to should not.</p>
+
+<!--- this is a real example that partially fixes a real bug in alttp --->
+<div class="futexample">
+<fkey>org</fkey> <addr>$01D4DB</addr>
+	<asmop>BCS</asmop> <ftok>*</ftok> <fcom>; assembles as B0 and skips the next byte</fcom>
+</div>
+
+<h4>Branch literals</h4>
+
+<p>Branch instructions can be assembled with literal values for their operands by using the <ftok>#</ftok> token. This may have some usecases, but generally, branch operands should be left to the assembler.</p>
+
+<h4 id="jnop">No-op jumps</h4>
+
+<p>A no-op jump can be assembled by supplying <ftok>&</ftok> as the operand to branch and jump instructions. These will assemble with the necessary value to move to the next instruction. This is useful for blanking out code without inefficient NOP usage or for jumping to fastrom after an interrupt.</p>
+
+<div class="futexample">
+<flbl>NMI:</flbl>
+	<asmop>JML</asmop> <ftok>&</ftok> <fcom>; jumps to the next instruction</fcom>
+	<asmop>REP</asmop> <immval>#$30</immval>
+
+	<asmop>BCS</asmop> <ftok>&</ftok> <fcom>; assembles as B0 00</fcom>
+</div>
+
+<h4 id="btys">BTYS</h4>
+
+<p>The <u><b>B</b></u>ranch <u><b>T</b></u>o <u><b>Y</b></u>our<u><b>S</b></u>elf&mdash;invoked with a single less-than (<ftok>&lt;</ftok>)&mdash;can be used to point a branch instruction to itself. This is primarily intended for use with the complex branching instructions in the SPC700 architecture, but it is available for any branching instruction in any language.</p>
+
+<div class="futexample">
+	<asmop>mov</asmop> <asmreg>A</asmreg>, <immval>#$FC</immval>
+	<asmop>cbne</asmop> <addr>$F4</addr>, <ftok>&lt;</ftok> <fcom>; assembles as 2E F4 FE</fcom>
+</div>
+
+<h4>Repeat pseudo-instructions</h4>
+
+<p>The following instructions can be repeated an arbitrary number of times by using the <ftok>#</ftok> token before an expression. This expression must be immediately resolvable and evaluate to a positive number:</p>
+
+<ul>
+	<li><asmop>ASL</asmop>, <asmop>LSR</asmop>, <asmop>ROL</asmop>, <asmop>ROR</asmop></li>
+	<li><asmop>INC</asmop>, <asmop>INX</asmop>, <asmop>INY</asmop>, <asmop>DEC</asmop>, <asmop>DEX</asmop>, <asmop>DEY</asmop></li>
+	<li><asmop>NOP</asmop>, <asmop>XBA</asmop></li>
+</ul>
+
+
+
+<h2 id="cli">Command line interface</h2>
+
+<h3 id="manifests">Manifest files</h3>
+
+<p>The recommended method of building projects is with a <code>.futaba</code> manifest file. These manifests dictate and control complex settings in a human-readable format, and, after <a href="#quickstart">registering the application</a>, enable double-click assembly for easy building.</p>
+
+<p>Comments may be added to manifest files using a <nowrap>semicolon (<ftok>;</ftok>)</nowrap>; however, they may only appear on their own lines.</p>
+
+<h4>Options</h4>
+
+<p>Below is a table of options available for manifest files. Keys marked with an asterisk <nowrap>(*)</nowrap> are required.</p>
+
+{%- assign manitemplate = "[FUTABA:assemble]" -%}
+
+<table id="manifestkeys" class="{{ tblclasses }} align1right topcells">
+	<thead>
+		<tr>
+			<th>Key</th>
+			<th>Description</th>
+		</tr>
+	</thead>
+
+	{%- for category in site.data.futaba.cli_args.categories -%}
+{%- capture manitemplate -%}
+{{ manitemplate }}
+
+{{ category.name }}:
+{%- endcapture -%}
+		<tr class="header"><th colspan="2"><code>{{ category.name }}:</code></th></tr>
+		{%- for item in category.items -%}
+{%- capture manitemplate -%}
+{{ manitemplate }}
+	{{ item.name | append: "                                     " | truncate: 20, "=" }}
+{%- endcapture -%}
+
+			<tr>
+				<td>{%- if item.required -%}
+					*
+					{%- endif -%}
+					<fblk>{{ item.name }}</fblk>
+				</td>
+				<td>{{ item.desc -}}
+					{%- if item.values -%}
+						<div class="manifest-values">
+							Accepted values: {% for val in item.values -%}
+								<fblk>{{ val }}</fblk>
+								{%- unless forloop.last -%}, {% endunless %}
+							{%- endfor -%}
+						</div>
+					{%- endif -%}
+
+					{%- if item.valuelist -%}
+						<table class="keyinfo">
+							<caption>Accepted values:</caption>
+							{%- for valitem in item.valuelist -%}
+								<tr>
+									<td><fblk>
+										{{- valitem.name -}}
+										{%- if valitem.args -%}
+											{%- for valarg in valitem.args -%}
+												, {{ argl }}{{ valarg }}{{ argr -}}
+											{%- endfor -%}
+										{%- endif -%}
+									</fblk></td>
+									<td>{{ valitem.desc }}</td>
+								</tr>
+							{%- endfor -%}
+						</table>
+					{%- endif -%}
+
+					{%- if item.info -%}
+						<div class="manifest-notes">{{ item.info }}</div>
+					{%- endif -%}
+				</td>
+			</tr>
+		{%- endfor -%}
+	{%- endfor -%}
+</table>
+
+
+<h4>Template</h4>
+
+<pre id="manifest-template">
+{{ manitemplate }}
+
+!VARIABLE1 = "STRING"
+!VARIABLE2 = 1.2823
+
+#SYMBOL1 = 1234
+#SYMBOL2 = $1ABC
+#SYMBOL3 = %01011
+</pre>
+
+
+
+
+<h2 id="nuget">.NET package</h2>
+
+<p>Futaba's core library is available as a nuget package from nuget.org for .NET projects. It can be found under the name <fblk>Spannerisms.futaba</fblk>.</p>
+
+<ul id="nugetapi">The following APIs are exposed:
+	<li><code>Futaba</code> namespace
+		<ul>
+			<li><code>Assembler</code> abstract class</li>
+			<li><code>UnmappedAssembler</code> class</li>
+			<li><code>LoromAssembler</code> class</li>
+			<li><code>HiromAssembler</code> class</li>
+			<li><code>ExLoromAssembler</code> class</li>
+			<li><code>ExHiromAssembler</code> class</li>
+			<li><code>Sa1Assembler</code> class</li>
+			<li><code>Breakpoint</code> class</li>
+			<li><code>MissingTokenSeverity</code> enum</li>
+			<li><code>RomOverflowAction</code> enum</li>
+			<li><code>Variable</code> class</li>
+			<li><code>Futaba.Symbols</code> namespace
+				<ul>
+					<li><code>Symbol</code> abstract class</li>
+					<li><code>AllocatedSymbol</code> class</li>
+					<li><code>AssignedSymbol</code> class</li>
+					<li><code>Buoy</code> class</li>
+					<li><code>DataBlockLabel</code> class</li>
+					<li><code>Dock</code> class</li>
+					<li><code>Label</code> class</li>
+					<li><code>Piling</code> class</li>
+					<li><code>Register</code> class</li>
+				</ul>
+			</li>
+			<li><code>Futaba.Snes</code> namespace
+				<ul>
+					<li><code>Coprocessor</code> enum</li>
+					<li><code>MapperMode</code> enum</li>
+					<li><code>Region</code> class</li>
+					<li><code>RomHeader</code> static class</li>
+				</ul>
+			</li>
+		</ul>
+	</li>
+</ul>
+

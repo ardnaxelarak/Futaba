@@ -1,0 +1,4 @@
+aplugins:
+  - jekyll-remote-theme
+
+remote_theme: spannerisms/spannerisms.github.io
