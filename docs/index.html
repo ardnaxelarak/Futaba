@@ -218,7 +218,7 @@ F
 
 <div class="futexample">
 <fkey>print</fkey> 1
-<fkey>print</fkey> 2 <fcom>; This is a comment.</fcom>
+<fkey>print</fkey> 2 <fincom>; This is a comment.</fincom>
 <fkey>print</fkey> 1 : <fkey>print</fkey> 2
 <fkey>print</fkey> 1 :<fkey>print</fkey> 2 <fcom>; error! missing space on the right</fcom>
 </div>
@@ -370,7 +370,7 @@ F
 
 <p>The <b>program counter</b> or <b>pc</b> of code or data is the physical location as it appears on the SNES system bus. 
 
-<p>The <b>provenance</b>{% include footnote content="After much deliberation, I chose &quot;provenance&quot; as the nomenclature because it was a synonym for &quot;origin&quot;, and I wanted something that was similar to the org directive&mdash;org being short for origin." %} or <b>site</b> of code or data is the location in memory that it should be interprated as being in. For most program code, provenance and program counter are identical, but for content that is accessed elsewhere, such as sound engine code on the APU, provenance will differ.</p>
+<p>The <b>provenance</b>{% include footnote content="After much deliberation, I chose &quot;provenance&quot; as the nomenclature because it was a synonym for &quot;origin&quot;, and I wanted something that was similar to the org directive&mdash;org being short for origin." %} or <b>site</b> of code or data is the location in memory that it should be interpreted as being in. For most program code, provenance and program counter are identical, but for content that is accessed elsewhere, such as sound engine code on the APU, provenance will differ.</p>
 
 <p>The <b>binary offset</b> of code or data is the physical location of it in the final <code>.sfc</code> file. This can be vastly different from the program counter or provenance, depending on the mapper mode.</p>
 
@@ -773,7 +773,7 @@ LabelE:NOP <fcom>; invalid! followed by normal text</fcom>
 
 <p>By default, labels and sublabels return their provenance when used in an expression; however, certain directives force a different context to be used. For example, the <a href="#directive-org"><fkey>org</fkey> directive</a> evaluates expressions with the "ROM address" context, causing all symbols to default to the ROM address they hold.</p>
 
-<p>The expression context can be overridden on individual symbols by appending a property <nowrap>accessor (<ftok>:</ftok>)</nowrap> and a propertty name. No spaces should separate the symbol name, specifier token, and property name.</p>
+<p>The expression context can be overridden on individual symbols by appending a property <nowrap>accessor (<ftok>:</ftok>)</nowrap> and a property name. No spaces should separate the symbol name, specifier token, and property name.</p>
 
 <div class="futexample">
 <fkey>print</fkey> Dragon <fcom>; provenance</fcom>

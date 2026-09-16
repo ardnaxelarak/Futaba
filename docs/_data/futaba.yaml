@@ -98,7 +98,7 @@ internal_variables:
   - name: version
     desc: Assembler version
   - name: pc
-    desc: Current progarm counter
+    desc: Current program counter
   - name: site
     desc: Current provenance
   - name: here

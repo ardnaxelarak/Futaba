@@ -12,6 +12,36 @@ public unsafe abstract partial class Assembler : IDisposable {
 	// ROM writer constants
 	internal const int MaxSize = 0x80_0000;
 
+	// private fields
+	private SnesArchitecture arch = SnesArchitecture.WDC65816;
+
+	private SnesEncoder CurrentEncoder = SnesEncoder.ASCII;
+
+	private SpannedLookup<SnesEncoder> Encoders = new(32);
+
+	private readonly DirectoryInfo directory;
+
+	private Dictionary<string, SourceFile> LoadedFiles = new(32);
+	private Dictionary<string, SourceBinary> LoadedBinaries = new(64);
+	private List<SourceObject> LoadedSources = new(128);
+
+	private int NextAllocBlockStart = -1;
+	private bool disposed;
+
+	private SpannedLookup<MacroCall> MacrosTable = new(128);
+	private SpannedLookup<UserFunction> UserFunctionsTable = new(128);
+
+
+	// need to use private fields for these
+	// so they can be removed during disposal without throwing an exception
+	private TextWriter _messageOut = Console.Out;
+	private TextWriter _errorOut = Console.Error;
+	private byte[]? _baseRom = null;
+
+
+
+
+
 	/// <summary>
 	/// Gets the file that acts as the entry point of assembly.
 	/// </summary>
@@ -23,13 +53,12 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// </summary>
 	/// <inheritdoc cref="OverflowAction" path="//remarks|//exception"/>
 	public byte[]? BaseRom {
-		get;
+		get => _baseRom;
 		set {
 			ThrowIfAssembling();
-			field = value;
+			_baseRom = value;
 		}
-	} = null;
-
+	}
 
 	private UInt128 RNGSeed = new((ulong) DateTime.Now.Ticks, (ulong) DateTime.UtcNow.Ticks);
 
@@ -119,7 +148,6 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// </remarks>
 	public string? ErrorLine { get; private set; } = null;
 
-
 	/// <summary>
 	/// Gets or sets where print messages are printed.
 	/// Defaults to <see cref="Console.Out"/>.
@@ -132,12 +160,13 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// </remarks>
 	/// <inheritdoc cref="OverflowAction" path="//exception"/>
 	public TextWriter MessageOut {
-		get;
+		get => _messageOut;
 		set {
 			ThrowIfAssembling();
-			field = value;
+			_messageOut = value;
 		}
-	} = Console.Out;
+	}
+
 
 	/// <summary>
 	/// Gets or sets where error and warning messages are printed.
@@ -145,30 +174,12 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// </summary>
 	/// <inheritdoc cref="MessageOut" path="//remarks|//exception"/>
 	public TextWriter ErrorOut {
-		get;
+		get => _errorOut;
 		set {
 			ThrowIfAssembling();
-			field = value;
+			_errorOut = value;
 		}
-	} = Console.Error;
-
-	private SnesArchitecture arch = SnesArchitecture.WDC65816;
-
-	private SnesEncoder CurrentEncoder = SnesEncoder.ASCII;
-
-	private SpannedLookup<SnesEncoder> Encoders = new(32);
-
-	private readonly DirectoryInfo directory;
-
-	private Dictionary<string, SourceFile> LoadedFiles = new(32);
-	private Dictionary<string, SourceBinary> LoadedBinaries = new(64);
-	private List<SourceObject> LoadedSources = new(128);
-
-	private int NextAllocBlockStart = -1;
-	private bool disposed;
-
-	private SpannedLookup<MacroCall> MacrosTable = new(128);
-	private SpannedLookup<UserFunction> UserFunctionsTable = new(128);
+	}
 
 	/// <summary>
 	/// Creates a new assembler object using the given file as its entry point.
@@ -248,7 +259,7 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// This action cannot be performed while assembly is occurring.
 	/// Attempting to do so will throw an <see cref="InvalidOperationException"/>.
 	/// </remarks>
-	/// <exception cref="InvalidOperationException"></exception>
+	/// <exception cref="InvalidOperationException">If the assembler is busy with assembly.</exception>
 	private void ThrowIfAssembling() {
 		if (AmBusy()) {
 			ThrowBusy();
@@ -360,8 +371,9 @@ public unsafe abstract partial class Assembler : IDisposable {
 		Segments.Clear();
 		Segments = default!;
 
-		MessageOut = default!;
-		ErrorOut = default!;
+		_messageOut = default!;
+		_errorOut = default!;
+		_baseRom = null;
 	}
 
 }

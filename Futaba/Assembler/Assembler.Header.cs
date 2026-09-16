@@ -169,7 +169,9 @@ unsafe partial class Assembler {
 			ThrowIfAssembling();
 
 			if (!IsValidRomSize(value)) {
-				throw new ArgumentOutOfRangeException(nameof(value), $"ROM size must be between {MinRomSize} and {MaxRomSize}");
+				Throw(MinRomSize, MaxRomSize);
+				static void Throw(int min, int max) =>
+					throw new ArgumentOutOfRangeException(nameof(value), $"ROM size must be between {min} and {max}");
 			}
 
 			field = value;
@@ -219,7 +221,6 @@ unsafe partial class Assembler {
 			};
 		}
 	}
-
 
 	/// <summary>
 	/// Gets or sets whether this software includes an on-board battery to protect its RAM.
@@ -292,9 +293,6 @@ unsafe partial class Assembler {
 			field = value;
 		}
 	} = true;
-
-
-
 
 	/// <summary>
 	/// Gets or sets the 2 character maker code.
