@@ -254,8 +254,8 @@ unsafe partial class Assembler {
 	/// Adds a given symbol to the assembler's lookup table.
 	/// </summary>
 	/// <param name="toAdd">The symbol to add</param>
-	/// <inheritdoc cref="AddSymbol(string, int)" path="//returns|//remarks|//exception"/>
-	public bool AddSymbol(Symbol toAdd) {
+	/// <inheritdoc cref="TryAddSymbol(string, int)" path="//returns|//remarks|//exception"/>
+	public bool TryAddSymbol(Symbol toAdd) {
 		ThrowIfAssembling();
 
 		return AddSymbolUnchecked(toAdd);
@@ -263,13 +263,13 @@ unsafe partial class Assembler {
 
 
 	/// <summary>
-	/// Adds a symbol with a given name and value to the assembler's lookup table.
+	/// Tries to add a symbol with a given name and value to the assembler's lookup table.
 	/// </summary>
 	/// <param name="name">The symbol's case-sensitive name</param>
 	/// <param name="value">The symbol's value</param>
 	/// <returns><see langword="true"/> if the symbol was successfully added.</returns>
 	/// <inheritdoc cref="ThrowIfAssembling" path="//remarks|//exception"/>
-	public bool AddSymbol(string name, int value) {
+	public bool TryAddSymbol(string name, int value) {
 		ThrowIfAssembling();
 
 		if (AssignedSymbol.TryCreate(name, value, out var addSym, out var _)) {

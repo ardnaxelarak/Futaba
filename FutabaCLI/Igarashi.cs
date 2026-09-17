@@ -55,8 +55,6 @@ internal static partial class Igarashi {
 		// heh
 		RootCommand rootaba = new("Futaba Assembler\r\nFor full documentation, see <https://spannerisms.github.io/futaba#cli>");
 
-
-
 		Command manifestBuild = new("build", "Assemble using a manifest file");
 
 		manifestBuild.Arguments.Add(Arg_ManifestFile);
@@ -244,45 +242,46 @@ internal static partial class Igarashi {
 
 			MapperMode mapper = args.GetValue(Arg_MapMode);
 
-			using Assembler ass = Assembler.CreateAssemblerWithMapper(mapper, entry);
+			using Assembler assembler = Assembler.CreateAssemblerWithMapper(mapper, entry);
 
 			if (baseRom is not null) {
-				ass.BaseRom = Helpers.GetFileAsArray(baseRom);
+				assembler.BaseRom = Helpers.GetFileAsArray(baseRom);
 			}
 
 			string romSizeStr = args.GetValue(Option_Size) ?? "auto";
 
 			if (romSizeStr.EqualsI("auto")) {
-				int size = ass.BaseRom?.Length ?? 0;
+				int size = assembler.BaseRom?.Length ?? 0;
 
-				if (size < ass.MinRomSize) {
-					ass.InitialRomSize = ass.MinRomSize;
-				} else if (size > ass.MaxRomSize) {
-					ass.InitialRomSize = ass.MaxRomSize;
+				if (size < assembler.MinRomSize) {
+					assembler.InitialRomSize = assembler.MinRomSize;
+				} else if (size > assembler.MaxRomSize) {
+					assembler.InitialRomSize = assembler.MaxRomSize;
 				} else {
-					ass.InitialRomSize = size;
+					assembler.InitialRomSize = size;
 				}
 			} else {
 				if (RomHeader.TryGetRomSize(romSizeStr, out int romSizeInt)) {
-					ass.InitialRomSize = romSizeInt;
+					assembler.InitialRomSize = romSizeInt;
 				} else {
 					Error($"Invalid ROM size: {romSizeStr}");
 					return Exit_Error;
 				}
 			}
 
-			ass.CalculateChecksum = args.GetResult(Option_FixChecksum) is not null;
-			ass.OverflowAction = RomOverflowAction.Grow;
+			assembler.CalculateChecksum = args.GetResult(Option_FixChecksum) is not null;
+			assembler.OverflowAction = RomOverflowAction.Grow;
 
 			bool showTimer = args.GetValue(Option_Timer);
 
 			Notice(StartedAssembly);
 
 			long started = Stopwatch.GetTimestamp();
-			ass.AssembleFile(outputFile);
+			assembler.AssembleFile(outputFile);
 			long finished = Stopwatch.GetTimestamp();
 
 			Notice(FinishedAssembly);
+			PostErrors(assembler);
 
 			if (showTimer) {
 				WriteTimer(started, finished);
@@ -363,7 +362,7 @@ internal static partial class Igarashi {
 					return Exit_Error;
 				}
 
-				Assembler assembler = manifest.Assembler!;
+				Assembler assembler = manifest.GetAssembler();
 
 				Notice(StartedAssembly);
 
@@ -410,12 +409,7 @@ internal static partial class Igarashi {
 
 				manifest.TryExportSymbols();
 
-				if (assembler.HasErrors) {
-					Console.WriteLine();
-					Console.WriteLine(StarSep);
-					Console.WriteLine("** Errors occurred during assembly. Output may be invalid.");
-					Console.WriteLine(StarSep);
-				}
+				PostErrors(assembler);
 
 				return manifest.ManifestGood ? Exit_Good : Exit_Error;
 
@@ -852,7 +846,7 @@ internal static partial class Igarashi {
 
 
 	static void WriteTimer(long started, long finished) {
-		Console.ForegroundColor = ConsoleColor.DarkYellow;
+		Console.ForegroundColor = ConsoleColor.Blue;
 		Console.Write($"Completed in {Stopwatch.GetElapsedTime(started, finished).TotalMilliseconds:#}ms");
 		Console.ResetColor();
 		Console.WriteLine();
@@ -866,7 +860,7 @@ internal static partial class Igarashi {
 	}
 
 	internal static void Warning(string s) {
-		Console.ForegroundColor = ConsoleColor.Yellow;
+		Console.ForegroundColor = ConsoleColor.DarkYellow;
 		Console.Error.Write(s);
 		Console.ResetColor();
 		Console.WriteLine();
@@ -875,6 +869,30 @@ internal static partial class Igarashi {
 	internal static void Notice(string s) {
 		Console.ForegroundColor = ConsoleColor.Cyan;
 		Console.Write(s);
+		Console.ResetColor();
+		Console.WriteLine();
+	}
+
+	internal static void PostErrors(Assembler assembler) {
+		int wc = assembler.WarningCount;
+		int ec = assembler.ErrorCount;
+
+		if ((wc, ec) is (0, 0)) {
+			return;
+		}
+
+		Console.WriteLine();
+		Console.ForegroundColor = ec > 0 ? ConsoleColor.Red : ConsoleColor.DarkYellow;
+
+		string ws = wc == 1 ? "warning" : "warnings";
+		string es = ec == 1 ? "error" : "errors";
+
+		Console.Write($"Assembly completed with {wc} {ws} and {ec} {es}.");
+
+		if (ec > 0) {
+			Console.Write(" Output may be invalid.");
+		}
+
 		Console.ResetColor();
 		Console.WriteLine();
 	}

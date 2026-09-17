@@ -46,6 +46,7 @@ unsafe partial class Assembler {
 
 			// reset the assembler's state
 			ErrorCount = 0;
+			WarningCount = 0;
 			ErrorLine = null;
 
 			if (!TryGetSource(EntryPoint.FullName, out var entryObj)) {
@@ -609,9 +610,11 @@ unsafe partial class Assembler {
 
 					ErrorOut.Write(CurrentSourceLine);
 					ErrorOut.Write(WarningText);
-					ErrorOut.WriteLine(contents ?? "Unspecified warning");
+					ErrorOut.Write(contents ?? "Unspecified warning");
 
 					Console.ResetColor();
+					ErrorOut.WriteLine();
+					IncrementWarnings();
 				}
 				return true;
 
@@ -621,9 +624,10 @@ unsafe partial class Assembler {
 
 					ErrorOut.Write(CurrentSourceLine);
 					ErrorOut.Write(ErrorText);
-					ErrorOut.WriteLine(contents ?? "Unspecified error");
+					ErrorOut.Write(contents ?? "Unspecified error");
 
 					Console.ResetColor();
+					ErrorOut.WriteLine();
 
 					IncrementErrors();
 				}

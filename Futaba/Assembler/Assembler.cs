@@ -8,10 +8,6 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// <inheritdoc cref="FutabaApp.Version"/>
 	public static Version Version => FutabaApp.Version;
 
-
-	// ROM writer constants
-	internal const int MaxSize = 0x80_0000;
-
 	// private fields
 	private SnesArchitecture arch = SnesArchitecture.WDC65816;
 
@@ -119,6 +115,22 @@ public unsafe abstract partial class Assembler : IDisposable {
 	public int ErrorCount { get; private set; } = 0;
 
 	/// <summary>
+	/// Returns the number of warnings encountered during assembly.
+	/// </summary>
+	public int WarningCount { get; private set; } = 0;
+
+	/// <summary>
+	/// Gets or sets whether to treat warnings as errors.
+	/// </summary>
+	public bool WarningsAreErrors {
+		get;
+		set {
+			ThrowIfAssembling();
+			field = value;
+		}
+	} = false;
+
+	/// <summary>
 	/// Gets or sets the maximum number of errors that can occur during assembly.
 	/// If the number of errors exceeds this value, an <see cref="InvalidOperationException"/> will be thrown.
 	/// </summary>
@@ -203,7 +215,7 @@ public unsafe abstract partial class Assembler : IDisposable {
 	/// </summary>
 	/// <remarks>
 	/// Assembly errors do not throw an exception or halt assembly.
-	/// Verify assembly succeeded with <see cref="Assembler.HasErrors"/>,
+	/// Verify assembly succeeded with <see cref="HasErrors"/>,
 	/// <para>
 	/// <inheritdoc cref="ThrowIfAssembling()" path="/remarks"/>
 	/// </para>

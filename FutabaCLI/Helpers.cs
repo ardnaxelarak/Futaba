@@ -184,6 +184,25 @@ internal static class Helpers {
 		return false;
 	}
 
+	public static bool TryParseInt32(ReadOnlySpan<char> s, out int value) {
+		if (s.Length > 0) {
+			if (s.Length > 1) {
+				char c = s[0];
+
+				if (c is '$') {
+					return int.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+				} else if (c is '%') {
+					return int.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+				}
+			}
+
+			return int.TryParse(s, NumberOptions | NumberStyles.AllowLeadingSign, null, out value);
+		}
+
+		value = 0;
+		return false;
+	}
+
 
 
 	public static bool TryParseValue(ReadOnlySpan<char> s, out decimal value) {

@@ -1,6 +1,8 @@
 ﻿namespace FutabaCLI;
 
 internal class ManifestContainer(FileInfo manifest) : IDisposable {
+	private static readonly Random random = new();
+
 	private readonly string fileName = manifest.FullName;
 
 	private LoadedItem<byte[]>? baseromfile = null;
@@ -36,9 +38,10 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 			field = value;
 		}
 	} = null;
-	public Assembler? Assembler {
+
+	private Assembler? Assembler {
 		get;
-		private set {
+		set {
 			field?.Dispose();
 			field = value;
 		}
@@ -59,42 +62,24 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 
 	private bool AssemblerNeedsUpdating = true;
 
+	private bool AssemblerSeeded = false;
+
 	private readonly Dictionary<string, ArgInfo> argVals = [];
 	private readonly Dictionary<string, Variable> prevariables = [];
 	private readonly Dictionary<string, FutabaSymbol> presymbols = [];
 
-	internal bool TryGetString(string key, [NotNullWhen(true)] out string? value) {
-		if (argVals.TryGetValue(key, out var info)) {
-			value = info.Value;
-			return true;
-		} else {
-			value = null;
-			return false;
-		}
-	}
 
-	internal bool TryGetFileInfo(string key, [NotNullWhen(true)] out FileInfo? value, out int line) {
-		if (argVals.TryGetValue(key, out var info)) {
-			line = info.Line;
-			value = new(info.Value);
-			return true;
-		} else {
-			line = 0;
-			value = null;
-			return false;
+	public Assembler GetAssembler() {
+		if (Assembler is null) {
+			throw new InvalidOperationException("Assembler is null.");
 		}
-	}
 
-	private bool TryGetArg(string key, [NotNullWhen(true)] out ArgInfo value) {
-		return argVals.TryGetValue(key, out value);
+		Assembler.SeedRNG(random.NextInt64(), random.NextInt64());
+		return Assembler;
 	}
 
 	internal void Configure() {
 		try {
-			if (ManifestGood && AssemblerNeedsUpdating) {
-				PrepAssembler();
-			}
-
 			if (ManifestGood && AssemblerNeedsUpdating) {
 				PrepAssembler();
 			}
@@ -104,9 +89,7 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 	}
 
 
-
 	private void PrepAssembler() {
-
 		if (!TryGetArg("entry", out var fileEntry)) {
 			ManifestErrorNoLine("No entry file specified.");
 			return;
@@ -136,7 +119,12 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 			return;
 		}
 
+
 		Igarashi.Notice("Configuring assembler...");
+
+
+		Assembler.ClearInitialSymbols();
+		Assembler.ClearInitialVariables();
 
 		OutputPath = Path.GetFullPath(outputGet);
 
@@ -147,76 +135,53 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 		}
 
 
-		if (TryGetArg("coprocessor", out var coprocessor)) {
-			if (CoprocessorLookup.TryGetValue(coprocessor.Value, out var copval)) {
-				Assembler.Coprocessor = copval;
-			} else {
-				ManifestGood = false;
-			}
+		if (TryGetArg("coprocessor", out var coprocessor)
+			&& CoprocessorLookup.TryGetValue(coprocessor.Value, out var copval)) {
+			Assembler.Coprocessor = copval;
+			
+		} else if (Assembler.Mapper is not MapperMode.Sa1) {
+			Assembler.Coprocessor = Coprocessor.None;
 		}
 
-		if (Assembler is null) {
-			ManifestGood = false;
-			return;
-		}
-
-		bool autofill = GetTrueFalseOrDefault("autofill", false, out var _);
+		bool autofill = GetBoolOrDefault("autofill", false, out var _);
 		Assembler.AutoPopulateHeader = autofill;
 
-		if (TryGetArg("title", out var titleGet)) {
-			Assembler.Title = titleGet.Value;
-		}
-
-		if (TryGetArg("makercode", out var makerGet)) {
-			Assembler.MakerCode = makerGet.Value;
-		}
-
-		if (TryGetArg("gamecode", out var gameGet)) {
-			Assembler.GameCode = gameGet.Value;
-		}
-
-
-
+		Assembler.Title = GetStringOrDefault("title");
+		Assembler.MakerCode = GetStringOrDefault("makercode");
+		Assembler.GameCode = GetStringOrDefault("gamecode");
+		
 		if (TryGetArg("region", out var regionGet)) {
 			if (Region.TryGetRegion(regionGet.Value, out var regionObj)) {
 				Assembler.Destination = regionObj;
 			} else {
 				ManifestWarning($"Invalid region name: '{regionGet.Value}'", regionGet.Line);
 			}
+		} else {
+			Assembler.Destination = Region.Japan;
 		}
 
-		if (TryGetByte("version", out var versionByte)) {
-			Assembler.RomVersion = versionByte;
+		Assembler.RomVersion = GetByteOrDefault("version", 0);
+		Assembler.SpecialVersion = GetByteOrDefault("specialversion", 0);
+		Assembler.CartridgeSubtype = GetByteOrDefault("cartridgetype", 0);
+
+
+		bool autochecksum = GetBoolOrDefault("checksum", false, out ArgParse parsed);
+
+		if (parsed is ArgParse.Valid && (autofill && !autochecksum)) {
+			ManifestWarningNoLine("Ignoring 'autochecksum=false' because header 'autofill=true'.");
+			autochecksum = true;
 		}
+		Assembler.CalculateChecksum = autochecksum;
 
-		if (TryGetByte("specialversion", out var spverByte)) {
-			Assembler.SpecialVersion = spverByte;
-		}
-
-		if (TryGetByte("cartridgetype", out var crtstGet)) {
-			Assembler.CartridgeSubtype = crtstGet;
-			
-		}
-
-
-		bool autochecksum = GetTrueFalseOrDefault("checksum", false, out ArgParse parsed);
-
-		if (parsed is ArgParse.Valid) {
-			if (autofill && !autochecksum) {
-				ManifestWarningNoLine("Ignoring 'autochecksum=false' because header 'autofill=true'.");
-			} else {
-				Assembler.CalculateChecksum = autochecksum;
-			}
-		}
-
-		Assembler.FastRom = GetTrueFalseOrDefault("fastrom", false, out _);
-		Assembler.ExtendedHeader = GetTrueFalseOrDefault("extended", true, out _);
+		Assembler.FastRom = GetBoolOrDefault("fastrom", false, out _);
+		Assembler.ExtendedHeader = GetBoolOrDefault("extended", true, out _);
 
 		if (TryGetArg("ramsize", out var ramsizeget)) {
 			if (RomHeader.TryGetRamSize(ramsizeget.Value, out int ramsizeval)) {
 				Assembler.RamSize = ramsizeval;
 			} else {
 				ManifestError($"Invalid argument to ramsize: \"{ramsizeget.Value}\"", ramsizeget.Line);
+				Assembler.RamSize = 0;
 			}
 		} else {
 			Assembler.RamSize = 0;
@@ -248,12 +213,12 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 				fillstart = allocSize;
 
 				if (allocSize > Assembler.MaxRomSize) {
-					ManifestWarningNoLine($"Base ROM file exceeds maximum length. It has been truncated.");
+					ManifestWarningNoLine("Base ROM file exceeds maximum length. It has been truncated.");
 					allocSize = Assembler.MaxRomSize;
 					fillstart = allocSize;
 
 				} else if (allocSize < Assembler.MinRomSize) {
-					ManifestWarningNoLine($"Base ROM file is too small on its own. ROM will be padded to reach minimum length.");
+					ManifestWarningNoLine("Base ROM file is too small on its own. ROM will be padded to reach minimum length.");
 					fillstart = allocSize;
 					allocSize = Assembler.MinRomSize;
 					Assembler.InitialRomSize = allocSize;
@@ -281,7 +246,7 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 		}
 
 		if (!setSize) {
-			ManifestWarningNoLine("With no 'romsize' or 'base' field, initial size is set to minimum.");
+			ManifestWarningNoLine("With no 'romsize' or 'base' field, initial size has been set to minimum.");
 			Assembler.InitialRomSize = Assembler.MinRomSize;
 		}
 
@@ -373,10 +338,10 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 		}
 
 		Assembler.BaseRom = baserom;
+		AssemblerSeeded = TryGetString("randomseed", out var randomseed);
 
-
-		if (TryGetArg("randomseed", out var randomseed)) {
-			var (seedA, seedB) = Helpers.HashString(randomseed.Value);
+		if (AssemblerSeeded) {
+			var (seedA, seedB) = Helpers.HashString(randomseed);
 			Assembler.SeedRNG(seedA, seedB);
 		}
 
@@ -445,6 +410,12 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 				}
 			}
 		}
+
+		Assembler.AddSymbols(presymbols.Values);
+		Assembler.AddVariables(prevariables.Values);
+
+		Assembler.MaximumErrors = GetInt32OrDefault("maxerrors", int.MaxValue);
+		Assembler.WarningsAreErrors = GetBoolOrDefault("warnaserror", false, out _);
 
 		MissingTokenSeverity tokenWarnLevel = MissingTokenSeverity.Ambiguous;
 
@@ -523,7 +494,7 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 	}
 
 
-	private bool GetTrueFalseOrDefault(string argName, bool defaultValue, out ArgParse parseStatus) {
+	private bool GetBoolOrDefault(string argName, bool defaultValue, out ArgParse parseStatus) {
 		if (TryGetArg(argName, out var argvalrecord)) {
 			string argvalstr = argvalrecord.Value;
 			if (argvalstr.EqualsI("true")) {
@@ -544,6 +515,37 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 	}
 
 
+	internal bool TryGetString(string key, [NotNullWhen(true)] out string? value) {
+		if (argVals.TryGetValue(key, out var info)) {
+			value = info.Value;
+			return true;
+		} else {
+			value = null;
+			return false;
+		}
+	}
+
+	private string GetStringOrDefault(string key) {
+		_ = TryGetString(key, out var ret);
+		return ret ?? string.Empty;
+	}
+
+
+	internal bool TryGetFileInfo(string key, [NotNullWhen(true)] out FileInfo? value, out int line) {
+		if (argVals.TryGetValue(key, out var info)) {
+			line = info.Line;
+			value = new(info.Value);
+			return true;
+		} else {
+			line = 0;
+			value = null;
+			return false;
+		}
+	}
+
+	private bool TryGetArg(string key, [NotNullWhen(true)] out ArgInfo value) {
+		return argVals.TryGetValue(key, out value);
+	}
 
 
 
@@ -741,17 +743,29 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 
 
 
-	bool TryGetByte(string key, out byte value) {
+	byte GetByteOrDefault(string key, byte defaultValue) {
 		if (TryGetArg(key, out var argGet)) {
-			if (Helpers.TryParseByte(argGet.Value, out value)) {
-				return true;
+			if (Helpers.TryParseByte(argGet.Value, out byte value)) {
+				return value;
 			} else {
 				ManifestWarning($"Unable to parse '{argGet.Value}' to an 8-bit value", argGet.Line);
 			}
 		}
 
-		value = 0;
-		return false;
+		return defaultValue;
+	}
+
+
+	int GetInt32OrDefault(string key, int defaultValue) {
+		if (TryGetArg(key, out var argGet)) {
+			if (Helpers.TryParseByte(argGet.Value, out byte value)) {
+				return value;
+			} else {
+				ManifestWarning($"Unable to parse '{argGet.Value}' to an 8-bit value", argGet.Line);
+			}
+		}
+
+		return defaultValue;
 	}
 
 
@@ -863,6 +877,8 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 			"overflow",
 			"tokens",
 			"symbols",
+			"warnaserror",
+			"maxerrors"
 		]},
 		{ "disassembly", [
 			"crc",

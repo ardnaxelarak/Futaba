@@ -7,6 +7,13 @@ partial class Assembler {
 	const string ErrorText = " ERROR: ";
 	const string WarningText = " WARNING: ";
 
+	internal void IncrementWarnings() {
+		if (WarningsAreErrors) {
+			IncrementErrors();
+		} else {
+			WarningCount++;
+		}
+	}
 
 	internal void IncrementErrors() {
 		if (++ErrorCount > MaximumErrors) {
@@ -50,6 +57,7 @@ partial class Assembler {
 
 	internal void Warning(string message, string? details, SourceLine srcLine) {
 		ErrorOutWrite(WarningText, message, details, srcLine, ConsoleColor.DarkYellow);
+		IncrementWarnings();
 	}
 
 	private void ErrorOutWrite(string messageType, string message, string? details, SourceLine srcLine, ConsoleColor color) {

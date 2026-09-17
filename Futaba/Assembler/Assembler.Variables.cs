@@ -180,24 +180,98 @@ unsafe partial class Assembler {
 	}
 
 
+	private bool TestAddingVariable(string name) {
+		ThrowIfAssembling();
+
+		return !string.IsNullOrWhiteSpace(name) && !name.ContainsAnyExcept(AsciiHelpers.IdentifierSearch);
+	}
+
+
 	/// <summary>
-	/// Creates a new variable with the specified value.
+	/// Tries to add <paramref name="variable"/> to the assembler's lookup table.
 	/// </summary>
-	/// <param name="name"></param>
-	/// <param name="value"></param>
-	/// <inheritdoc cref="ThrowIfAssembling" path="//remarks|//exception"/>
-	public void CreateExternalVariable(string name, string value) {
-		ThrowIfAssembling();
-
-		InitialVariables[name] = new(name, value);
+	/// <param name="variable">The variable to add.</param>
+	/// <remarks>
+	/// Invalid variable names will be rejected.
+	/// New variables will override older variables with the same name.
+	/// <para><inheritdoc cref="ThrowIfAssembling" path="//remarks"/></para>
+	/// </remarks>
+	/// <returns><see langword="true"/> if the variable was successfully added.</returns>
+	/// <inheritdoc cref="ThrowIfAssembling" path="//exception"/>
+	public bool TryAddVariable(Variable variable) {
+		if (TestAddingVariable(variable.Name)) {
+			InitialVariables[variable.Name] = variable;
+			return true;
+		} else {
+			return false;
+		}
 	}
 
-	/// <inheritdoc cref="CreateExternalVariable(string, string)"/>
-	public void CreateExternalVariable(string name, int value) {
+	/// <summary>
+	/// Tries to create new variable with the specified value
+	/// and add it to the assembler's lookup table.
+	/// </summary>
+	/// <param name="name">The name of the variable to add.</param>
+	/// <param name="value">The value of the variable.</param>
+	/// <inheritdoc cref="TryAddVariable(Variable)" path="//returns|//remarks|//exception"/>
+	public bool TryAddVariable(string name, string value) {
+		if (TestAddingVariable(name)) {
+			InitialVariables[name] = new(name, value);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/// <inheritdoc cref="TryAddVariable(string, string)"/>
+	public bool TryAddVariable(string name, int value) {
+		if (TestAddingVariable(name)) {
+			InitialVariables[name] = new(name, value);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/// <inheritdoc cref="TryAddVariable(string, string)"/>
+	public bool TryAddVariable(string name, decimal value) {
+		if (TestAddingVariable(name)) {
+			InitialVariables[name] = new(name, value);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// Adds a collection of variables to the assembler's lookup table.
+	/// </summary>
+	/// <param name="variables">The collection of variables to add.</param>
+	/// <remarks>
+	/// New variables will override older variables with the same name.
+	/// <para><inheritdoc cref="ThrowIfAssembling" path="//remarks"/></para>
+	/// </remarks>
+	/// <inheritdoc cref="ThrowIfAssembling" path="//exception"/>
+	public void AddVariables(Variable[] variables) {
 		ThrowIfAssembling();
 
-		InitialVariables[name] = new(name, value);
+		foreach (Variable toAdd in variables) {
+			InitialVariables[toAdd.Name] = toAdd;
+		}
 	}
+
+	/// <inheritdoc cref="AddVariables(Variable[])"/>
+	public void AddVariables(IEnumerable<Variable> variables) {
+		ThrowIfAssembling();
+
+		foreach (Variable toAdd in variables) {
+			InitialVariables[toAdd.Name] = toAdd;
+		}
+	}
+
+
+
+
 
 	/// <returns><c>0</c> if invalid</returns>
 	internal decimal GetInternalVariable(CharSpan name) {

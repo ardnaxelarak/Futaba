@@ -20,7 +20,7 @@ namespace Futaba;
 
 internal static class FutabaApp {
 	/// <summary>
-	/// Assembler version.
+	/// Futaba Assembler library version.
 	/// </summary>
 	public static readonly Version Version;
 

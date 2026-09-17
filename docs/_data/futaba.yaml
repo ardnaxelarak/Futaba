@@ -359,6 +359,11 @@ cli_args:
         - name: tokens
           desc: Set the warning level for instructions without a size token.
           values: [ "off", "ambiguous", "aggressive", "absolute", "all" ]
+        - name: warnaserror
+          desc: Treat warnings as errors during assembly.
+          values: *BoolInputs
+        - name: maxerrors
+          desc: Set the maximum number of errors. If this limit is exceeded, assembly immediately halts.
     - name: disassembly
       items:
         - name: crc
