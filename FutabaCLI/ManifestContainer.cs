@@ -221,7 +221,6 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 					ManifestWarningNoLine("Base ROM file is too small on its own. ROM will be padded to reach minimum length.");
 					fillstart = allocSize;
 					allocSize = Assembler.MinRomSize;
-					Assembler.InitialRomSize = allocSize;
 					forceNullFill = true;
 
 				}
@@ -232,6 +231,7 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 			}
 
 			AllocateBaseRom(allocSize);
+			Assembler.InitialRomSize = allocSize;
 			Array.Copy(baseromfile.Item, baserom!, fillstart);
 
 		} else {
