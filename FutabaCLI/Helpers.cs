@@ -252,7 +252,7 @@ internal static class Helpers {
 		uint s2 = (uint) seed2;
 		uint s3 = (uint) (seed1 >> 32);
 
-		while (buffer.Length >= sizeof(ulong)) {
+		while (buffer.Length >= sizeof(uint)) {
 			MemoryMarshal.Write(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
 
 			uint t = s1 << 9;
@@ -263,7 +263,7 @@ internal static class Helpers {
 			s2 ^= t;
 			s3 = BitOperations.RotateLeft(s3, 11);
 
-			buffer = buffer.Slice(sizeof(ulong));
+			buffer = buffer.Slice(sizeof(uint));
 		}
 
 		if (!buffer.IsEmpty) {
@@ -271,7 +271,7 @@ internal static class Helpers {
 
 			byte* remainingBytes = (byte*) &next;
 
-			Debug.Assert(buffer.Length < sizeof(ulong));
+			Debug.Assert(buffer.Length < sizeof(uint));
 
 			for (int i = 0; i < buffer.Length; i++) {
 				buffer[i] = remainingBytes[i];
