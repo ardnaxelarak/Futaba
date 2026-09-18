@@ -22,7 +22,7 @@ namespace Futaba;
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 internal unsafe class XoRandom {
-	private uint rng0, rng1, rng2, rng3;
+	private ulong rng0, rng1, rng2, rng3;
 
 	public XoRandom() {
 
@@ -53,13 +53,13 @@ internal unsafe class XoRandom {
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public ulong NextUInt64() {
-		uint s0 = rng0;
-		uint s1 = rng1;
-		uint s2 = rng2;
-		uint s3 = rng3;
+		ulong s0 = rng0;
+		ulong s1 = rng1;
+		ulong s2 = rng2;
+		ulong s3 = rng3;
 
-		uint result = BitOperations.RotateLeft(s1 * 5, 7) * 9;
-		uint t = s1 << 9;
+		ulong result = BitOperations.RotateLeft(s1 * 5, 7) * 9;
+		ulong t = s1 << 17;
 
 		s2 ^= s0;
 		s3 ^= s1;
@@ -67,7 +67,7 @@ internal unsafe class XoRandom {
 		s0 ^= s3;
 
 		s2 ^= t;
-		s3 = BitOperations.RotateLeft(s3, 11);
+		s3 = BitOperations.RotateRight(s3, 19);
 
 		rng0 = s0;
 		rng1 = s1;
@@ -78,21 +78,21 @@ internal unsafe class XoRandom {
 	}
 
 	public void NextBytes(Span<byte> buffer) {
-		uint s0 = rng0;
-		uint s1 = rng1;
-		uint s2 = rng2;
-		uint s3 = rng3;
+		ulong s0 = rng0;
+		ulong s1 = rng1;
+		ulong s2 = rng2;
+		ulong s3 = rng3;
 
 		while (buffer.Length >= sizeof(ulong)) {
 			MemoryMarshal.Write(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
 
-			uint t = s1 << 9;
+			ulong t = s1 << 17;
 			s2 ^= s0;
 			s3 ^= s1;
 			s1 ^= s2;
 			s0 ^= s3;
 			s2 ^= t;
-			s3 = BitOperations.RotateLeft(s3, 11);
+			s3 = BitOperations.RotateRight(s3, 19);
 
 			buffer = buffer.Slice(sizeof(ulong));
 		}
@@ -108,13 +108,13 @@ internal unsafe class XoRandom {
 				buffer[i] = remainingBytes[i];
 			}
 
-			uint t = s1 << 9;
+			ulong t = s1 << 17;
 			s2 ^= s0;
 			s3 ^= s1;
 			s1 ^= s2;
 			s0 ^= s3;
 			s2 ^= t;
-			s3 = BitOperations.RotateLeft(s3, 11);
+			s3 = BitOperations.RotateRight(s3, 19);
 		}
 
 		rng0 = s0;
@@ -145,21 +145,6 @@ internal unsafe class XoRandom {
 		}
 
 		return minValue;
-	}
-
-	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	internal ulong NextUInt64(ulong maxValue) {
-		ulong randomProduct = Math.BigMul(maxValue, NextUInt64(), out ulong lowPart);
-
-		if (lowPart < maxValue) {
-			ulong remainder = (0ul - maxValue) % maxValue;
-
-			while (lowPart < remainder) {
-				randomProduct = Math.BigMul(maxValue, NextUInt64(), out lowPart);
-			}
-		}
-
-		return randomProduct;
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
