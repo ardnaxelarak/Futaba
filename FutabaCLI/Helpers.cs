@@ -101,7 +101,7 @@ internal static class Helpers {
 		int remaining = dest.Length - start;
 
 		while (remaining > 0) {
-			int fillamt = (fillLen >= remaining) ? fillLen : remaining;
+			int fillamt = (fillLen >= remaining) ? remaining : fillLen;
 
 			Array.Copy(source, 0, dest, start, fillamt);
 			start += fillamt;
@@ -171,9 +171,9 @@ internal static class Helpers {
 				char c = s[0];
 
 				if (c is '$') {
-					return byte.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+					return byte.TryParse(s[1..], NumberStyles.HexNumber, null, out value);
 				} else if (c is '%') {
-					return byte.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+					return byte.TryParse(s[1..], NumberStyles.BinaryNumber, null, out value);
 				}
 			}
 
@@ -190,9 +190,9 @@ internal static class Helpers {
 				char c = s[0];
 
 				if (c is '$') {
-					return int.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+					return int.TryParse(s[1..], NumberStyles.HexNumber, null, out value);
 				} else if (c is '%') {
-					return int.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+					return int.TryParse(s[1..], NumberStyles.BinaryNumber, null, out value);
 				}
 			}
 
@@ -212,9 +212,9 @@ internal static class Helpers {
 				char c = s[0];
 
 				if (c is '$') {
-					return decimal.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+					return decimal.TryParse(s[1..], NumberStyles.HexNumber, null, out value);
 				} else if (c is '%') {
-					return decimal.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+					return decimal.TryParse(s[1..], NumberStyles.BinaryNumber, null, out value);
 				}
 			}
 

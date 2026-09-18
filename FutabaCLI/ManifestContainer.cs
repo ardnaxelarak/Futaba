@@ -299,7 +299,7 @@ internal class ManifestContainer(FileInfo manifest) : IDisposable {
 
 						for (int fi = 0; fi < filllen; fi++) {
 							string fillatom = fillspan[fi];
-							if (byte.TryParse(fillatom, out byte fillb)) {
+							if (Helpers.TryParseByte(fillatom, out byte fillb)) {
 								fillarray[fi] = fillb;
 							} else {
 								ManifestError($"Invalid hex number in 'nullfill' value at index {fi}: {fillatom}", linenum);
