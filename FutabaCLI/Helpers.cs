@@ -231,7 +231,7 @@ internal static class Helpers {
 	// but we also want the benefits of xoshiro
 	// so this is a handrolled copy of that algorithm
 	// but with custom seeding
-	// this is copied from <https://github.com/dotnet/dotnet/blob/main/src/runtime/src/libraries/System.Private.CoreLib/src/System/Random.Xoshiro256StarStarImpl.cs>
+	// this is copied from <https://github.com/dotnet/dotnet/blob/main/src/runtime/src/libraries/System.Private.CoreLib/src/System/Random.Xoshiro128StarStarImpl.cs>
 	// which is licensed under the MIT license
 	//       Copyright (c) .NET Foundation and Contributors
 	//
