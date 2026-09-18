@@ -140,11 +140,6 @@ internal static class Helpers {
 		public bool EqualsI(Span<char> s2) => s.Equals(s2, StringComparison.OrdinalIgnoreCase);
 	}
 
-
-
-
-	const NumberStyles NumberOptions = NumberStyles.AllowDecimalPoint;
-
 	public static void WriteHexAddress(int address, Span<char> destination, int offset) {
 		Span<byte> addrBytes = stackalloc byte[4];
 
@@ -177,7 +172,7 @@ internal static class Helpers {
 				}
 			}
 
-			return byte.TryParse(s, NumberOptions | NumberStyles.AllowLeadingSign, null, out value);
+			return byte.TryParse(s, NumberStyles.AllowLeadingSign, null, out value);
 		}
 
 		value = 0;
@@ -196,7 +191,7 @@ internal static class Helpers {
 				}
 			}
 
-			return int.TryParse(s, NumberOptions | NumberStyles.AllowLeadingSign, null, out value);
+			return int.TryParse(s, NumberStyles.AllowLeadingSign, null, out value);
 		}
 
 		value = 0;
@@ -218,7 +213,7 @@ internal static class Helpers {
 				}
 			}
 
-			return decimal.TryParse(s, NumberOptions | NumberStyles.AllowLeadingSign, null, out value);
+			return decimal.TryParse(s, NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign, null, out value);
 		}
 
 		value = 0M;
@@ -231,7 +226,7 @@ internal static class Helpers {
 	// but we also want the benefits of xoshiro
 	// so this is a handrolled copy of that algorithm
 	// but with custom seeding
-	// this is copied from <https://github.com/dotnet/dotnet/blob/main/src/runtime/src/libraries/System.Private.CoreLib/src/System/Random.Xoshiro128StarStarImpl.cs>
+	// this is copied from <https://github.com/dotnet/dotnet/blob/main/src/runtime/src/libraries/System.Private.CoreLib/src/System/Random.Xoshiro256StarStarImpl.cs>
 	// which is licensed under the MIT license
 	//       Copyright (c) .NET Foundation and Contributors
 	//
@@ -246,44 +241,41 @@ internal static class Helpers {
 	//       copies or substantial portions of the Software.
 	// Licensed to the .NET Foundation under one or more agreements.
 	// The .NET Foundation licenses this file to you under the MIT license.
+
 	internal static unsafe void FillRandom(ulong seed1, ulong seed2, Span<byte> buffer) {
-		uint s0 = (uint) seed1;
-		uint s1 = (uint) (seed2 >> 32);
-		uint s2 = (uint) seed2;
-		uint s3 = (uint) (seed1 >> 32);
+		ulong s0 = 0xBEBE_6368_6565_7365ul; // need not all 0s, and this will guarantee that
+		ulong s1 = seed1; // make this the most interesting
+		ulong s2 = (uint) seed2;
+		ulong s3 = seed2 ^ 0x00_FFFF_FFFF_00;
 
-		while (buffer.Length >= sizeof(uint)) {
-			MemoryMarshal.Write(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
+		while (buffer.Length >= sizeof(ulong)) {
+			BinaryPrimitives.WriteUInt64LittleEndian(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
 
-			uint t = s1 << 9;
+			ulong t = s1 << 17;
 			s2 ^= s0;
 			s3 ^= s1;
 			s1 ^= s2;
 			s0 ^= s3;
 			s2 ^= t;
-			s3 = BitOperations.RotateLeft(s3, 11);
+			s3 = BitOperations.RotateRight(s3, 19);
 
-			buffer = buffer.Slice(sizeof(uint));
+			buffer = buffer.Slice(sizeof(ulong));
 		}
 
 		if (!buffer.IsEmpty) {
 			ulong next = BitOperations.RotateLeft(s1 * 5, 7) * 9;
 
+			if (!BitConverter.IsLittleEndian) {
+				next = BinaryPrimitives.ReverseEndianness(next);
+			}
+
 			byte* remainingBytes = (byte*) &next;
 
-			Debug.Assert(buffer.Length < sizeof(uint));
+			Debug.Assert(buffer.Length < sizeof(ulong));
 
 			for (int i = 0; i < buffer.Length; i++) {
 				buffer[i] = remainingBytes[i];
 			}
-
-			uint t = s1 << 9;
-			s2 ^= s0;
-			s3 ^= s1;
-			s1 ^= s2;
-			s0 ^= s3;
-			s2 ^= t;
-			s3 = BitOperations.RotateLeft(s3, 11);
 		}
 	}
 

@@ -34,21 +34,21 @@ internal unsafe class XoRandom {
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public void Reseed(UInt128 seed) {
-		if (BitConverter.IsLittleEndian) {
-			uint* sptr = (uint*) &seed;
-			rng0 = sptr[0];
-			rng1 = sptr[1];
-			rng2 = sptr[2];
-			rng3 = sptr[3];
-		} else {
-			rng0 = (uint) (seed >> 0);
-			rng1 = (uint) (seed >> 32);
-			rng2 = (uint) (seed >> 64);
-			rng3 = (uint) (seed >> 96);
-		}
+		// need not all 0s, and this will guarantee that, irrespective of seed
+		rng0 = 0xBEBE_6368_6565_7365ul;
 
+		// give rng1 the most bits
+		// it is the first part of the algorithm
+		// so it should be the most interesting
+		rng1 = (ulong) seed;
 
-		
+		byte* sptr = (byte*) &seed;
+
+		// high bits in rng2
+		rng2 = *(ulong*) (sptr + (BitConverter.IsLittleEndian ? 8 : 0));
+
+		// this is endianness agnostic
+		rng3 = BinaryPrimitives.ReverseEndianness(*(ulong*) (sptr + 4));
 	}
 
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -84,7 +84,7 @@ internal unsafe class XoRandom {
 		ulong s3 = rng3;
 
 		while (buffer.Length >= sizeof(ulong)) {
-			MemoryMarshal.Write(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
+			BinaryPrimitives.WriteUInt64LittleEndian(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
 
 			ulong t = s1 << 17;
 			s2 ^= s0;
@@ -99,6 +99,10 @@ internal unsafe class XoRandom {
 
 		if (!buffer.IsEmpty) {
 			ulong next = BitOperations.RotateLeft(s1 * 5, 7) * 9;
+
+			if (!BitConverter.IsLittleEndian) {
+				next = BinaryPrimitives.ReverseEndianness(next);
+			}
 
 			byte* remainingBytes = (byte*) &next;
 
@@ -164,7 +168,7 @@ internal unsafe class XoRandom {
 		return (uint) (randomProduct >> 32);
 	}
 
-	// copied from BitOperations.cs, which is internal, for some reason...
+	// copied from BitOperations.cs, where it is internal, for some reason...
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	private static int Log2Ceiling(ulong value) {
 		int result = BitOperations.Log2(value);
