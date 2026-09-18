@@ -90,15 +90,17 @@ partial class Assembler {
 
 
 	internal void Error_BadResolve(IExpressionReturn expr, string unresolvedmsg) {
-		Error_BadResolve(expr.ReturnState, unresolvedmsg, CurrentSourceLine);
+		Error_BadResolve(expr, unresolvedmsg, CurrentSourceLine);
 	}
 
 	internal void Error_BadResolve(IExpressionReturn expr) {
-		Error_BadResolve(expr.ReturnState, MsgInfo.ValueMustResolveNow, CurrentSourceLine);
+		Error_BadResolve(expr, MsgInfo.ValueMustResolveNow, CurrentSourceLine);
 	}
 
-	internal void Error_BadResolve(ExpressionState state, string unresolvedmsg, SourceLine sourceLine) {
-		switch (state) {
+	// TODO need to have expressions propagate an error string for more precision
+	// also maybe remove the base message or let it be null
+	internal void Error_BadResolve(IExpressionReturn expr, string unresolvedmsg, SourceLine sourceLine) {
+		switch (expr.ReturnState) {
 			case ExpressionState.InvalidContext:
 				Error(unresolvedmsg, "Invalid symbol context", sourceLine);
 				break;
@@ -109,6 +111,34 @@ partial class Assembler {
 
 			case ExpressionState.DivideByZero:
 				Error(unresolvedmsg, "Division by zero", sourceLine);
+				break;
+
+			case ExpressionState.MissingSymbol:
+				Error(unresolvedmsg, "Symbol does not exist", sourceLine);
+				break;
+
+			case ExpressionState.SyntaxError:
+				Error(unresolvedmsg, "Syntax error in expression", sourceLine);
+				break;
+
+			case ExpressionState.InvalidArgument:
+				Error(unresolvedmsg, "Invalid function argument", sourceLine);
+				break;
+
+			case ExpressionState.InvalidArgumentToStringFunction:
+				Error(unresolvedmsg, "Invalid function argument", sourceLine);
+				break;
+
+			case ExpressionState.VariableNotFound:
+				Error(unresolvedmsg, "Variable does not exist", sourceLine);
+				break;
+
+			case ExpressionState.MissingIdentifier:
+				Error(unresolvedmsg, "Missing identifier", sourceLine);
+				break;
+
+			default:
+				Error(unresolvedmsg, sourceLine);
 				break;
 		}
 	}
