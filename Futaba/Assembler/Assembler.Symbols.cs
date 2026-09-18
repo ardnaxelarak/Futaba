@@ -87,7 +87,7 @@ unsafe partial class Assembler {
 						break;
 				}
 			} else {
-				Error_BadResolve(sreq.Item.ReturnState, CouldntDoIt, sreq.SourceLine);
+				Error_BadResolve(sreq.Item, CouldntDoIt, sreq.SourceLine);
 			}
 		}
 
@@ -117,7 +117,7 @@ unsafe partial class Assembler {
 				}
 
 			} else {
-				Error_BadResolve(breq.Item.ReturnState, CouldntDoIt, breq.SourceLine);
+				Error_BadResolve(breq.Item, CouldntDoIt, breq.SourceLine);
 			}
 		}
 
@@ -140,7 +140,7 @@ unsafe partial class Assembler {
 
 				WarningIfWeirdLocalJump(rvalue, aprq.Provenance);
 			} else {
-				Error_BadResolve(aprq.Item.ReturnState, CouldntDoIt, aprq.SourceLine);
+				Error_BadResolve(aprq.Item, CouldntDoIt, aprq.SourceLine);
 			}
 		}
 
@@ -148,7 +148,7 @@ unsafe partial class Assembler {
 			if (freq.TryToResolve()) {
 				FullfillBlockFillRequest(freq.Offset, freq.Size, freq.WordSize, freq.Value, freq.Time);
 			} else {
-				Error_BadResolve(freq.Item.ReturnState, CouldntDoIt, freq.SourceLine);
+				Error_BadResolve(freq.Item, CouldntDoIt, freq.SourceLine);
 			}
 		}
 	}

@@ -58,7 +58,7 @@ internal static partial class Igarashi {
 		Command manifestBuild = new("build", "Assemble using a manifest file");
 
 		manifestBuild.Arguments.Add(Arg_ManifestFile);
-		manifestBuild.AddOptions(Option_AssembleOnce, Option_PreserveConsole, Option_Timer);
+		manifestBuild.AddOptions(Option_AssembleOnce, Option_PreserveConsole, Option_PauseAfter, Option_Timer);
 		manifestBuild.SetAction(Assemble);
 
 
@@ -173,7 +173,7 @@ internal static partial class Igarashi {
 				shellKey.SetValue("", DefaultOpen);
 
 				using var shell1 = shellKey.CreateSubKey(@$"{DefaultOpen}\command");
-				shell1.SetValue("", @$"""{propath}"" build ""%1""");
+				shell1.SetValue("", @$"""{propath}"" build ""%1"" --pause");
 
 				using var extKey = rootKey.CreateSubKey(@"SOFTWARE\Classes\.futaba");
 				extKey.SetValue("", AppHandle);
@@ -315,6 +315,8 @@ internal static partial class Igarashi {
 		bool redoAssembly = !args.GetValue(Option_AssembleOnce);
 		bool clearConsole = !args.GetValue(Option_PreserveConsole);
 		bool showTimer = args.GetValue(Option_Timer);
+		bool pauseAfter = args.GetValue(Option_PauseAfter);
+
 
 		int retcode = 0;
 
@@ -345,7 +347,7 @@ internal static partial class Igarashi {
 						Console.WriteLine();
 					}
 				}
-			} else {
+			} else if (pauseAfter) {
 				Console.ReadKey(false);
 			}
 		} while (redoAssembly);
@@ -934,6 +936,11 @@ internal static partial class Igarashi {
 
 	static readonly Option<bool> Option_AssembleOnce = new("--no-retry", "-1") {
 		Description = "Skips the retry prompt after assembly",
+		Arity = ArgumentArity.Zero,
+	};
+
+	static readonly Option<bool> Option_PauseAfter = new("--pause") {
+		Description = "Waits for input after assembly. Only applicable with --no-retry",
 		Arity = ArgumentArity.Zero,
 	};
 
