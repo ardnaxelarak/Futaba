@@ -101,7 +101,7 @@ internal static class Helpers {
 		int remaining = dest.Length - start;
 
 		while (remaining > 0) {
-			int fillamt = (fillLen >= remaining) ? fillLen : remaining;
+			int fillamt = (fillLen >= remaining) ? remaining : fillLen;
 
 			Array.Copy(source, 0, dest, start, fillamt);
 			start += fillamt;
@@ -171,9 +171,9 @@ internal static class Helpers {
 				char c = s[0];
 
 				if (c is '$') {
-					return byte.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+					return byte.TryParse(s[1..], NumberStyles.HexNumber, null, out value);
 				} else if (c is '%') {
-					return byte.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+					return byte.TryParse(s[1..], NumberStyles.BinaryNumber, null, out value);
 				}
 			}
 
@@ -190,9 +190,9 @@ internal static class Helpers {
 				char c = s[0];
 
 				if (c is '$') {
-					return int.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+					return int.TryParse(s[1..], NumberStyles.HexNumber, null, out value);
 				} else if (c is '%') {
-					return int.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+					return int.TryParse(s[1..], NumberStyles.BinaryNumber, null, out value);
 				}
 			}
 
@@ -212,9 +212,9 @@ internal static class Helpers {
 				char c = s[0];
 
 				if (c is '$') {
-					return decimal.TryParse(s[1..], NumberOptions | NumberStyles.HexNumber, null, out value);
+					return decimal.TryParse(s[1..], NumberStyles.HexNumber, null, out value);
 				} else if (c is '%') {
-					return decimal.TryParse(s[1..], NumberOptions | NumberStyles.BinaryNumber, null, out value);
+					return decimal.TryParse(s[1..], NumberStyles.BinaryNumber, null, out value);
 				}
 			}
 
@@ -231,7 +231,7 @@ internal static class Helpers {
 	// but we also want the benefits of xoshiro
 	// so this is a handrolled copy of that algorithm
 	// but with custom seeding
-	// this is copied from <https://github.com/dotnet/dotnet/blob/main/src/runtime/src/libraries/System.Private.CoreLib/src/System/Random.Xoshiro256StarStarImpl.cs>
+	// this is copied from <https://github.com/dotnet/dotnet/blob/main/src/runtime/src/libraries/System.Private.CoreLib/src/System/Random.Xoshiro128StarStarImpl.cs>
 	// which is licensed under the MIT license
 	//       Copyright (c) .NET Foundation and Contributors
 	//
@@ -252,7 +252,7 @@ internal static class Helpers {
 		uint s2 = (uint) seed2;
 		uint s3 = (uint) (seed1 >> 32);
 
-		while (buffer.Length >= sizeof(ulong)) {
+		while (buffer.Length >= sizeof(uint)) {
 			MemoryMarshal.Write(buffer, BitOperations.RotateLeft(s1 * 5, 7) * 9);
 
 			uint t = s1 << 9;
@@ -263,7 +263,7 @@ internal static class Helpers {
 			s2 ^= t;
 			s3 = BitOperations.RotateLeft(s3, 11);
 
-			buffer = buffer.Slice(sizeof(ulong));
+			buffer = buffer.Slice(sizeof(uint));
 		}
 
 		if (!buffer.IsEmpty) {
@@ -271,7 +271,7 @@ internal static class Helpers {
 
 			byte* remainingBytes = (byte*) &next;
 
-			Debug.Assert(buffer.Length < sizeof(ulong));
+			Debug.Assert(buffer.Length < sizeof(uint));
 
 			for (int i = 0; i < buffer.Length; i++) {
 				buffer[i] = remainingBytes[i];
